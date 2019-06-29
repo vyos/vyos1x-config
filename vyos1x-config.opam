@@ -1,0 +1,25 @@
+opam-version: "2.0"
+name: "vyos1x-config"
+version: "0.1"
+synopsis: "VyOS 1.x and EdgeOS config file manipulation library"
+description: """
+A library for parsing, manipulating, and exporting VyOS 1.x and EdgeOS config files.
+"""
+maintainer: "Daniil Baturin <daniil@baturin.org>"
+authors: "VyOS maintainers and contributors <maintainers@vyos.net>"
+license: "MIT"
+homepage: "https://github.com/vyos/vyos1x-config"
+bug-reports: "https://phabricator.vyos.net"
+dev-repo: "git+https://github.com/vyos/vyos1x-config/"
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name]
+]
+depends: [
+  "ocamlfind" {build}
+  "menhir" {build}
+  "dune" {build & >= "1.4.0"}
+  "ppx_deriving_yojson"
+  "batteries"
+  "yojson"
+]

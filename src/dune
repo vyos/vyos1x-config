@@ -1,0 +1,10 @@
+(ocamllex vyos1x_lexer)
+(menhir
+ (flags --table)
+ (modules vyos1x_parser))
+
+(library
+ (name vyos1x)
+ (public_name vyos1x-config)
+ (libraries yojson menhirLib)
+ (preprocess (pps ppx_deriving_yojson)))
