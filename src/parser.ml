@@ -17,7 +17,7 @@ let rec parse lexbuf (checkpoint : Config_tree.t I.checkpoint) =
       parse lexbuf checkpoint
   | I.HandlingError _env ->
       let line, pos = Util.get_lexing_position lexbuf in
-      raise (Syntax_error (Some (line, pos), "Syntax error"))
+      raise (Syntax_error (Some (line, pos), "Invalid syntax."))
   | I.Accepted v -> v
   | I.Rejected ->
        raise (Syntax_error (None, "invalid syntax (parser rejected the input)"))
