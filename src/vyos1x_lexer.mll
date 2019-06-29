@@ -1,8 +1,13 @@
 {
 
+open Util
 open Vyos1x_parser
 
 exception Error of string
+
+let lexing_error lexbuf msg =
+  let line, column = Util.get_lexing_position lexbuf in
+  raise (Syntax_error (Some (line, column), msg))
 
 (*
 
@@ -57,7 +62,7 @@ rule token = parse
 | '\n'
     { Lexing.new_line lexbuf; if !vy_inside_node then (vy_inside_node := false; NEWLINE) else token lexbuf }
 | '"'
-    { vy_inside_node := true; read_string (Buffer.create 16) lexbuf }
+    { vy_inside_node := true; read_double_quoted_string (Buffer.create 16) lexbuf }
 | '''
     { vy_inside_node := true; read_single_quoted_string (Buffer.create 16) lexbuf }
 | "/*"
@@ -72,48 +77,46 @@ rule token = parse
     { vy_inside_node := true; IDENTIFIER s}
 | eof
     { EOF }
-| _
-{ raise (Error (Printf.sprintf "At offset %d: unexpected character.\n" (Lexing.lexeme_start lexbuf))) }
+| _ as bad_char
+{ lexing_error lexbuf (Printf.sprintf "unexpected character \'%c\'" bad_char) }
 
-and read_string buf =
+and read_double_quoted_string buf =
   parse
   | '"'       { STRING (Buffer.contents buf) }
-  | '\\' '/'  { Buffer.add_char buf '/'; read_string buf lexbuf }
-  | '\\' '\\' { Buffer.add_char buf '\\'; read_string buf lexbuf }
-  | '\\' 'b'  { Buffer.add_char buf '\b'; read_string buf lexbuf }
-  | '\\' 'f'  { Buffer.add_char buf '\012'; read_string buf lexbuf }
-  | '\\' 'n'  { Buffer.add_char buf '\n'; read_string buf lexbuf }
-  | '\\' 'r'  { Buffer.add_char buf '\r'; read_string buf lexbuf }
-  | '\\' 't'  { Buffer.add_char buf '\t'; read_string buf lexbuf }
-  | '\\' '\'' { Buffer.add_char buf '\''; read_string buf lexbuf }
-  | '\\' '"' { Buffer.add_char buf '"'; read_string buf lexbuf }
-  | '\n'      { Lexing.new_line lexbuf; Buffer.add_char buf '\n'; read_string buf lexbuf }
+  | '\\' '/'  { Buffer.add_char buf '/'; read_double_quoted_string buf lexbuf }
+  | '\\' '\\' { Buffer.add_char buf '\\'; read_double_quoted_string buf lexbuf }
+  | '\\' 'b'  { Buffer.add_char buf '\b'; read_double_quoted_string buf lexbuf }
+  | '\\' 'f'  { Buffer.add_char buf '\012'; read_double_quoted_string buf lexbuf }
+  | '\\' 'n'  { Buffer.add_char buf '\n'; read_double_quoted_string buf lexbuf }
+  | '\\' 'r'  { Buffer.add_char buf '\r'; read_double_quoted_string buf lexbuf }
+  | '\\' 't'  { Buffer.add_char buf '\t'; read_double_quoted_string buf lexbuf }
+  | '\\' '\'' { Buffer.add_char buf '\''; read_double_quoted_string buf lexbuf }
+  | '\\' '"' { Buffer.add_char buf '"'; read_double_quoted_string buf lexbuf }
+  | '\n'      { Lexing.new_line lexbuf; Buffer.add_char buf '\n'; read_double_quoted_string buf lexbuf }
   | [^ '"' '\\']+
     { Buffer.add_string buf (Lexing.lexeme lexbuf);
-      read_string buf lexbuf
+      read_double_quoted_string buf lexbuf
     }
-  | _ { raise (Error (Printf.sprintf "Illegal string character: %s" (Lexing.lexeme lexbuf))) }
-  | eof { raise (Error ("String is not terminated")) }
+  | eof { lexing_error lexbuf "Quoted string is missing the closing double quote" }
 
 and read_single_quoted_string buf =
   parse
   | '''       { STRING (Buffer.contents buf) }
-  | '\\' '/'  { Buffer.add_char buf '/'; read_string buf lexbuf }
-  | '\\' '\\' { Buffer.add_char buf '\\'; read_string buf lexbuf }
-  | '\\' 'b'  { Buffer.add_char buf '\b'; read_string buf lexbuf }
-  | '\\' 'f'  { Buffer.add_char buf '\012'; read_string buf lexbuf }
-  | '\\' 'n'  { Buffer.add_char buf '\n'; read_string buf lexbuf }
-  | '\\' 'r'  { Buffer.add_char buf '\r'; read_string buf lexbuf }
-  | '\\' 't'  { Buffer.add_char buf '\t'; read_string buf lexbuf }
-  | '\\' '\'' { Buffer.add_char buf '\''; read_string buf lexbuf }
-  | '\\' '"' { Buffer.add_char buf '"'; read_string buf lexbuf }
-  | '\n'      { Lexing.new_line lexbuf; Buffer.add_char buf '\n'; read_string buf lexbuf }
+  | '\\' '/'  { Buffer.add_char buf '/'; read_single_quoted_string buf lexbuf }
+  | '\\' '\\' { Buffer.add_char buf '\\'; read_single_quoted_string buf lexbuf }
+  | '\\' 'b'  { Buffer.add_char buf '\b'; read_single_quoted_string buf lexbuf }
+  | '\\' 'f'  { Buffer.add_char buf '\012'; read_single_quoted_string buf lexbuf }
+  | '\\' 'n'  { Buffer.add_char buf '\n'; read_single_quoted_string buf lexbuf }
+  | '\\' 'r'  { Buffer.add_char buf '\r'; read_single_quoted_string buf lexbuf }
+  | '\\' 't'  { Buffer.add_char buf '\t'; read_single_quoted_string buf lexbuf }
+  | '\\' '\'' { Buffer.add_char buf '\''; read_single_quoted_string buf lexbuf }
+  | '\\' '"' { Buffer.add_char buf '"'; read_single_quoted_string buf lexbuf }
+  | '\n'      { Lexing.new_line lexbuf; Buffer.add_char buf '\n'; read_single_quoted_string buf lexbuf }
   | [^ ''' '\\']+
     { Buffer.add_string buf (Lexing.lexeme lexbuf);
       read_single_quoted_string buf lexbuf
     }
-  | _ { raise (Error (Printf.sprintf "Illegal string character: %s" (Lexing.lexeme lexbuf))) }
-  | eof { raise (Error ("String is not terminated")) }
+  | eof { lexing_error lexbuf "Quoted string is missing the closing single quote" }
 
 and read_comment buf =
   parse
