@@ -20,6 +20,5 @@ depends: [
   "menhir" {build}
   "dune" {build & >= "1.4.0"}
   "ppx_deriving_yojson"
-  "batteries"
   "yojson"
 ]
