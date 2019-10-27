@@ -36,3 +36,5 @@ val is_tag : t -> string list -> bool
 val render_commands : t -> string list -> string
 
 val render_config : t -> string
+
+val render_json : t -> string

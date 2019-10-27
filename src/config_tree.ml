@@ -201,6 +201,44 @@ struct
 
 end (* Renderer *)
 
+module JSONRenderer = struct
+    let render_values values =
+        match values with
+        | [] -> Printf.sprintf "{}"
+        | [v] -> Printf.sprintf "\"%s\"" (String.escaped v)
+        | _  ->
+            let rendered = List.map (fun s -> Printf.sprintf "\"%s\"" (String.escaped s)) values in
+            let rendered = String.concat "," rendered in
+            Printf.sprintf "[%s]" rendered
+
+    let rec render_node node =
+        let name = Vytree.name_of_node node in
+        let children = Vytree.children_of_node node in
+        let data = Vytree.data_of_node node in
+        match children, data.values with
+        | [], [] ->
+            (* Empty node.
+               In JSON, we don't differentiate between leaf and non-leaf nodes in this case. *)
+            Printf.sprintf "\"%s\": {}" name
+        | _, [] ->
+            (* Non-empty, non-leaf node. *)
+            let children_strs = List.map render_node children in
+            let children_str = String.concat "," children_strs in
+            Printf.sprintf "\"%s\": {%s}" name children_str
+        | [], _ ->
+            (* Leaf node with children. *)
+            Printf.sprintf "\"%s\": %s" name (render_values data.values)
+        | _, _ ->
+            (* Shouldn't happen *)
+            failwith "Internal error: non-leaf node with values"
+
+    let render_json node =
+        let children = Vytree.children_of_node node in
+        let child_configs = List.map render_node children in
+        let child_configs = String.concat "," child_configs in
+        Printf.sprintf "{%s}" child_configs
+end (* JSONRenderer *)
+
 let render_commands node path =
     let node =
 	match path with
@@ -212,3 +250,5 @@ let render_commands node path =
     String.concat "\n" commands
 
 let render_config = Renderer.render_config
+
+let render_json = JSONRenderer.render_json
