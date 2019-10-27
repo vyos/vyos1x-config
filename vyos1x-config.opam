@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "vyos1x-config"
-version: "0.1"
+version: "0.2"
 synopsis: "VyOS 1.x and EdgeOS config file manipulation library"
 description: """
 A library for parsing, manipulating, and exporting VyOS 1.x and EdgeOS config files.
@@ -20,6 +20,5 @@ depends: [
   "menhir" {build}
   "dune" {build & >= "1.4.0"}
   "ppx_deriving_yojson"
-  "batteries"
   "yojson"
 ]
