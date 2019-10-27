@@ -252,3 +252,5 @@ let render_commands node path =
 let render_config = Renderer.render_config
 
 let render_json = JSONRenderer.render_json
+
+let render_json_ast c = to_yojson c |> Yojson.Safe.to_string

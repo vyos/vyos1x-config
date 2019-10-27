@@ -38,3 +38,5 @@ val render_commands : t -> string list -> string
 val render_config : t -> string
 
 val render_json : t -> string
+
+val render_json_ast : t -> string
