@@ -114,7 +114,7 @@ struct
         match child_names with
         | [] ->
              (* This is a leaf node *)
-             let values = List.map String.escaped data.values in
+             let values = List.map Util.escape_string data.values in
              let cmds =
                  begin
                  match values with
@@ -143,9 +143,9 @@ struct
   let render_values indent_str name values =
     match values with
     | [] -> Printf.sprintf "%s%s { }\n" indent_str name
-    | [v] -> Printf.sprintf "%s%s \"%s\"\n" indent_str name (String.escaped v)
+    | [v] -> Printf.sprintf "%s%s \"%s\"\n" indent_str name (Util.escape_string v)
     | _  -> 
-      let rendered = List.map (fun s -> Printf.sprintf "%s%s \"%s\"" indent_str name (String.escaped s)) values in
+      let rendered = List.map (fun s -> Printf.sprintf "%s%s \"%s\"" indent_str name (Util.escape_string s)) values in
       let rendered = String.concat "\n" rendered in
       Printf.sprintf "%s\n" rendered
 
@@ -205,9 +205,9 @@ module JSONRenderer = struct
     let render_values values =
         match values with
         | [] -> Printf.sprintf "{}"
-        | [v] -> Printf.sprintf "\"%s\"" (String.escaped v)
+        | [v] -> Printf.sprintf "\"%s\"" (Util.escape_string v)
         | _  ->
-            let rendered = List.map (fun s -> Printf.sprintf "\"%s\"" (String.escaped s)) values in
+            let rendered = List.map (fun s -> Printf.sprintf "\"%s\"" (Util.escape_string s)) values in
             let rendered = String.concat "," rendered in
             Printf.sprintf "[%s]" rendered
 
