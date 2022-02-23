@@ -15,7 +15,7 @@ exception Empty_comparison
 
 module ValueS = Set.Make(struct type t = string let compare = compare end)
 
-let make_diff_tree l r = { left = l; right = r;
+let make_diff_trees l r = { left = l; right = r;
                            add = ref (Config_tree.make "root");
                            del = ref (Config_tree.make "root");
                            inter = ref (Config_tree.make "root");
@@ -109,6 +109,16 @@ let clone ?(with_children=true) ?(set_values=[]) old_root new_root path =
             let path_remaining = Vylist.complement path path_existing in
             clone_path ~with_children:with_children ~set_values:set_values old_root new_root path_existing path_remaining
 
+let rec graft_children children stock path =
+    match children with
+    | [] -> stock
+    | x::xs ->
+            let stock = Vytree.insert ~children:(children_of x) stock (path @ [name_of x]) (data_of x)
+            in graft_children xs stock path
+
+let graft_tree stem stock path =
+    graft_children (children_of stem) stock path
+
 (* define the diff_func; in this instance, we imperatively build the difference trees *)
 let decorate_trees (trees : diff_trees) ?(with_children=true) (path : string list) (m : change) =
     match m with
@@ -147,11 +157,18 @@ let compare path left right =
     else
         let (left, right) = if not (path = []) then
             (tree_at_path path left, tree_at_path path right) else (left, right) in
-        let trees = make_diff_tree left right in
+        let trees = make_diff_trees left right in
         diff [] (decorate_trees trees) [(Option.some left, Option.some right)];
         trees
 
 (* wrapper to return diff trees *)
-let diffs path left right =
+let diff_tree path left right =
     let trees = compare path left right in
-    (!(trees.add), !(trees.del), !(trees.inter))
+    let add_node = Config_tree.make "add" in
+    let del_node = Config_tree.make "delete" in
+    let int_node = Config_tree.make "inter" in
+    let ret = make Config_tree.default_data "root" [add_node; del_node; int_node] in
+    let ret = graft_tree !(trees.add) ret ["add"] in
+    let ret = graft_tree !(trees.del) ret ["delete"] in
+    let ret = graft_tree !(trees.inter) ret ["inter"] in
+    ret
