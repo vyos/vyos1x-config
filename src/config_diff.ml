@@ -6,7 +6,7 @@ type diff_trees = {
     left: Config_tree.t;
     right: Config_tree.t;
     add: Config_tree.t ref;
-    del: Config_tree.t ref;
+    sub: Config_tree.t ref;
     inter: Config_tree.t ref;
 }
 
@@ -17,7 +17,7 @@ module ValueS = Set.Make(struct type t = string let compare = compare end)
 
 let make_diff_trees l r = { left = l; right = r;
                            add = ref (Config_tree.make "root");
-                           del = ref (Config_tree.make "root");
+                           sub = ref (Config_tree.make "root");
                            inter = ref (Config_tree.make "root");
 }
 
@@ -123,13 +123,13 @@ let graft_tree stem stock path =
 let decorate_trees (trees : diff_trees) ?(with_children=true) (path : string list) (m : change) =
     match m with
     | Added -> trees.add := clone trees.right !(trees.add) path
-    | Deleted -> trees.del := clone ~with_children:false trees.left !(trees.del) path
+    | Deleted -> trees.sub := clone trees.left !(trees.sub) path
     | Unchanged -> trees.inter := clone ~with_children:with_children trees.left !(trees.inter) path
     | Updated v ->
             (* if in this case, node at path is guaranteed to exist *)
             let ov = Config_tree.get_values trees.left path in
             match ov, v with
-            | [_], [_] -> trees.del := clone trees.left !(trees.del) path;
+            | [_], [_] -> trees.sub := clone trees.left !(trees.sub) path;
                           trees.add := clone trees.right !(trees.add) path
             | _, _ -> let ovs = ValueS.of_list ov in
                       let vs = ValueS.of_list v in
@@ -137,7 +137,7 @@ let decorate_trees (trees : diff_trees) ?(with_children=true) (path : string lis
                       let set_v = ValueS.elements (ValueS.diff vs ovs) in
                       let set_inter = ValueS.elements (ValueS.inter ovs vs) in
                       if not (set_ov = []) then
-                          trees.del := clone ~set_values:set_ov trees.left !(trees.del) path;
+                          trees.sub := clone ~set_values:set_ov trees.left !(trees.sub) path;
                       if not (set_v = []) then
                           trees.add := clone ~set_values:set_v trees.right !(trees.add) path;
                       if not (set_inter = []) then
@@ -165,10 +165,10 @@ let compare path left right =
 let diff_tree path left right =
     let trees = compare path left right in
     let add_node = Config_tree.make "add" in
-    let del_node = Config_tree.make "delete" in
+    let sub_node = Config_tree.make "sub" in
     let int_node = Config_tree.make "inter" in
-    let ret = make Config_tree.default_data "root" [add_node; del_node; int_node] in
+    let ret = make Config_tree.default_data "root" [add_node; sub_node; int_node] in
     let ret = graft_tree !(trees.add) ret ["add"] in
-    let ret = graft_tree !(trees.del) ret ["delete"] in
+    let ret = graft_tree !(trees.sub) ret ["sub"] in
     let ret = graft_tree !(trees.inter) ret ["inter"] in
     ret
