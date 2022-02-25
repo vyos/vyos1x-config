@@ -14,8 +14,10 @@ exception Incommensurable
 exception Empty_comparison
 
 val make_diff_trees : Config_tree.t -> Config_tree.t -> diff_trees
-val clone : ?recurse:bool -> ?set_values:string list -> Config_tree.t -> Config_tree.t -> string list -> Config_tree.t
+val clone : ?recurse:bool -> ?set_values:(string list) option -> Config_tree.t -> Config_tree.t -> string list -> Config_tree.t
 val decorate_trees : diff_trees -> ?recurse:bool -> string list -> change -> unit
+val trim_trees : diff_trees -> ?recurse:bool -> string list -> change -> unit
 val compare : string list -> Config_tree.t -> Config_tree.t -> diff_trees
 val diff_tree : string list -> Config_tree.t -> Config_tree.t -> Config_tree.t
+val trim_tree : Config_tree.t -> Config_tree.t -> Config_tree.t
 
