@@ -1,6 +1,6 @@
-type change = Unchanged | Added | Deleted | Updated of string list
+type change = Unchanged | Added | Subtracted | Updated of string list
 
-type diff_func = ?with_children:bool -> string list -> change -> unit
+type diff_func = ?recurse:bool -> string list -> change -> unit
 
 type diff_trees = {
     left: Config_tree.t;
@@ -70,7 +70,7 @@ let rec diff (path : string list) (f : diff_func) (l : (Config_tree.t option * C
     | (left_node_opt, right_node_opt) :: ls ->
         (let path = update_path path left_node_opt right_node_opt in
         match left_node_opt, right_node_opt with
-        | Some _, None -> f path Deleted
+        | Some _, None -> f path Subtracted
         | None, Some _ -> f path Added
         | Some left_node, Some right_node when left_node = right_node ->
                 f path Unchanged
@@ -78,20 +78,20 @@ let rec diff (path : string list) (f : diff_func) (l : (Config_tree.t option * C
                 let values = (data_of right_node).values in
                 f path (Updated values)
         | Some left_node, Some right_node ->
-                (f ~with_children:false path Unchanged;
+                (f ~recurse:false path Unchanged;
                 diff path f (opt_zip left_node right_node))
         | None, None -> raise Empty_comparison)
         ; diff path f ls
 
 (* copy node paths between trees *)
-let rec clone_path ?(with_children=true) ?(set_values=[]) old_root new_root path_done path_remaining =
+let rec clone_path ?(recurse=true) ?(set_values=[]) old_root new_root path_done path_remaining =
     match path_remaining with
     | [] | [_] ->
         let path_total = path_done @ path_remaining in
         let old_node = Vytree.get old_root path_total in
         let data = if not (set_values = []) then
             { (data_of old_node) with Config_tree.values = set_values } else (data_of old_node) in
-        if with_children then
+        if recurse then
             Vytree.insert ~children:(children_of old_node) new_root path_total data
         else
             Vytree.insert new_root path_total data
@@ -99,15 +99,15 @@ let rec clone_path ?(with_children=true) ?(set_values=[]) old_root new_root path
         let path_done = path_done @ [name] in
         let old_node = Vytree.get old_root path_done in
         let new_root = Vytree.insert new_root path_done (data_of old_node) in
-        clone_path ~with_children:with_children ~set_values:set_values old_root new_root path_done names
+        clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_done names
 
-let clone ?(with_children=true) ?(set_values=[]) old_root new_root path =
+let clone ?(recurse=true) ?(set_values=[]) old_root new_root path =
     match path with
-    | [] -> if with_children then old_root else new_root
+    | [] -> if recurse then old_root else new_root
     | _ ->
             let path_existing = Vytree.get_existent_path new_root path in
             let path_remaining = Vylist.complement path path_existing in
-            clone_path ~with_children:with_children ~set_values:set_values old_root new_root path_existing path_remaining
+            clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_existing path_remaining
 
 let rec graft_children children stock path =
     match children with
@@ -119,29 +119,31 @@ let rec graft_children children stock path =
 let graft_tree stem stock path =
     graft_children (children_of stem) stock path
 
+let is_empty l = (l = [])
+
 (* define the diff_func; in this instance, we imperatively build the difference trees *)
-let decorate_trees (trees : diff_trees) ?(with_children=true) (path : string list) (m : change) =
+let decorate_trees (trees : diff_trees) ?(recurse=true) (path : string list) (m : change) =
     match m with
     | Added -> trees.add := clone trees.right !(trees.add) path
-    | Deleted -> trees.sub := clone trees.left !(trees.sub) path
-    | Unchanged -> trees.inter := clone ~with_children:with_children trees.left !(trees.inter) path
+    | Subtracted -> trees.sub := clone trees.left !(trees.sub) path
+    | Unchanged -> trees.inter := clone ~recurse:recurse trees.left !(trees.inter) path
     | Updated v ->
             (* if in this case, node at path is guaranteed to exist *)
             let ov = Config_tree.get_values trees.left path in
             match ov, v with
             | [_], [_] -> trees.sub := clone trees.left !(trees.sub) path;
                           trees.add := clone trees.right !(trees.add) path
-            | _, _ -> let ovs = ValueS.of_list ov in
-                      let vs = ValueS.of_list v in
-                      let set_ov = ValueS.elements (ValueS.diff ovs vs) in
-                      let set_v = ValueS.elements (ValueS.diff vs ovs) in
-                      let set_inter = ValueS.elements (ValueS.inter ovs vs) in
-                      if not (set_ov = []) then
-                          trees.sub := clone ~set_values:set_ov trees.left !(trees.sub) path;
-                      if not (set_v = []) then
-                          trees.add := clone ~set_values:set_v trees.right !(trees.add) path;
-                      if not (set_inter = []) then
-                          trees.inter := clone ~set_values:set_inter trees.left !(trees.inter) path
+            | _, _ -> let ov_set = ValueS.of_list ov in
+                      let v_set = ValueS.of_list v in
+                      let sub_vals = ValueS.elements (ValueS.diff ov_set v_set) in
+                      let add_vals = ValueS.elements (ValueS.diff v_set ov_set) in
+                      let inter_vals = ValueS.elements (ValueS.inter ov_set v_set) in
+                      if not (is_empty sub_vals) then
+                          trees.sub := clone ~set_values:sub_vals trees.left !(trees.sub) path;
+                      if not (is_empty add_vals) then
+                          trees.add := clone ~set_values:add_vals trees.right !(trees.add) path;
+                      if not (is_empty inter_vals) then
+                          trees.inter := clone ~set_values:inter_vals trees.left !(trees.inter) path
 
 (* get sub trees for path-relative comparison *)
 let tree_at_path path node =
