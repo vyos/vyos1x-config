@@ -84,13 +84,16 @@ let rec diff (path : string list) (f : diff_func) (l : (Config_tree.t option * C
         ; diff path f ls
 
 (* copy node paths between trees *)
-let rec clone_path ?(recurse=true) ?(set_values=[]) old_root new_root path_done path_remaining =
+let rec clone_path ?(recurse=true) ?(set_values=None) old_root new_root path_done path_remaining =
     match path_remaining with
     | [] | [_] ->
         let path_total = path_done @ path_remaining in
         let old_node = Vytree.get old_root path_total in
-        let data = if not (set_values = []) then
-            { (data_of old_node) with Config_tree.values = set_values } else (data_of old_node) in
+        let data =
+            match set_values with
+            | Some v -> { (data_of old_node) with Config_tree.values = v }
+            | None -> data_of old_node
+        in
         if recurse then
             Vytree.insert ~children:(children_of old_node) new_root path_total data
         else
@@ -101,7 +104,7 @@ let rec clone_path ?(recurse=true) ?(set_values=[]) old_root new_root path_done 
         let new_root = Vytree.insert new_root path_done (data_of old_node) in
         clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_done names
 
-let clone ?(recurse=true) ?(set_values=[]) old_root new_root path =
+let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
     match path with
     | [] -> if recurse then old_root else new_root
     | _ ->
@@ -139,11 +142,34 @@ let decorate_trees (trees : diff_trees) ?(recurse=true) (path : string list) (m 
                       let add_vals = ValueS.elements (ValueS.diff v_set ov_set) in
                       let inter_vals = ValueS.elements (ValueS.inter ov_set v_set) in
                       if not (is_empty sub_vals) then
-                          trees.sub := clone ~set_values:sub_vals trees.left !(trees.sub) path;
+                          trees.sub := clone ~set_values:(Some sub_vals) trees.left !(trees.sub) path;
                       if not (is_empty add_vals) then
-                          trees.add := clone ~set_values:add_vals trees.right !(trees.add) path;
+                          trees.add := clone ~set_values:(Some add_vals) trees.right !(trees.add) path;
                       if not (is_empty inter_vals) then
-                          trees.inter := clone ~set_values:inter_vals trees.left !(trees.inter) path
+                          trees.inter := clone ~set_values:(Some inter_vals) trees.left !(trees.inter) path
+
+let trim_trees (trees : diff_trees) ?(recurse=false) (path : string list) (m : change) =
+    match m with
+    | Added -> ()
+    | Subtracted -> trees.sub := clone ~recurse:recurse ~set_values:(Some []) trees.left !(trees.sub) path
+    | Unchanged -> ()
+    | Updated v ->
+            (* if in this case, node at path is guaranteed to exist *)
+            let ov = Config_tree.get_values trees.left path in
+            match ov, v with
+            | [_], [_] -> trees.sub := clone trees.left !(trees.sub) path;
+            | _, _ -> let ov_set = ValueS.of_list ov in
+                      let v_set = ValueS.of_list v in
+                      let sub_vals = ValueS.elements (ValueS.diff ov_set v_set) in
+                      let add_vals = ValueS.elements (ValueS.diff v_set ov_set) in
+                      (* in practice, the above sets will be disjoint *)
+                      let inter_vals = ValueS.elements (ValueS.inter ov_set v_set) in
+                      if not (is_empty sub_vals) then
+                          if (is_empty add_vals) && (is_empty inter_vals) then
+                              (* delete whole node, not just values *)
+                              trees.sub := clone ~set_values:(Some []) trees.left !(trees.sub) path
+                          else
+                              trees.sub := clone ~set_values:(Some sub_vals) trees.left !(trees.sub) path
 
 (* get sub trees for path-relative comparison *)
 let tree_at_path path node =
@@ -174,3 +200,8 @@ let diff_tree path left right =
     let ret = graft_tree !(trees.sub) ret ["sub"] in
     let ret = graft_tree !(trees.inter) ret ["inter"] in
     ret
+
+let trim_tree left right =
+    let trees = make_diff_trees left right in
+    diff [] (trim_trees trees) [(Option.some left, Option.some right)];
+    !(trees.sub)
