@@ -43,93 +43,92 @@ when they are significant, so that the parser can use them as terminators.
 The informal idea is that a newline is only significant if it follows a leaf node.
 So we need rules for finding out if we are inside a leaf node or not.
 
-These are the formal rules. A newline is significant if and only if
-1. Preceding token is an identifier
-2. Preceding token is a quoted string
+These are the formal rules. A newline is significant if and only if either:
+1. its preceding token is an identifier
+2. OR its preceding token is a quoted string
 
 We set the vy_inside_node flag to true when we enter a leaf node and reset it when
 we reach the end of it.
 
 *)
 
-let vy_inside_node = ref false
-
 }
 
-rule token = parse
+rule token vy_inside_node = parse
 | [' ' '\t' '\r']
-    { token lexbuf }
+    { token vy_inside_node lexbuf }
 | '\n'
-    { Lexing.new_line lexbuf; if !vy_inside_node then (vy_inside_node := false; NEWLINE) else token lexbuf }
+    { Lexing.new_line lexbuf; if vy_inside_node then (false, NEWLINE) else token vy_inside_node lexbuf }
 | '"'
-    { vy_inside_node := true; read_double_quoted_string (Buffer.create 16) lexbuf }
+    { read_double_quoted_string true (Buffer.create 16) lexbuf }
 | '''
-    { vy_inside_node := true; read_single_quoted_string (Buffer.create 16) lexbuf }
+    { read_single_quoted_string true (Buffer.create 16) lexbuf }
 | "/*"
-    { vy_inside_node := false; read_comment (Buffer.create 16) lexbuf }
+    { read_comment false (Buffer.create 16) lexbuf }
 | '{'
-    { vy_inside_node := false; LEFT_BRACE }
+    { (false, LEFT_BRACE) }
 | '}'
-    { vy_inside_node := false; RIGHT_BRACE }
+    { (false, RIGHT_BRACE) }
 | "//" [^ '\n']*
-    { token lexbuf }
+    { token vy_inside_node lexbuf }
 | [^ ' ' '\t' '\n' '\r' '{' '}' '"' ''' ]+ as s
-    { vy_inside_node := true; IDENTIFIER s}
+    { (true, IDENTIFIER s) }
 | eof
-    { EOF }
+    { (vy_inside_node, EOF) }
 | _ as bad_char
 { lexing_error lexbuf (Printf.sprintf "unexpected character \'%c\'" bad_char) }
 
-and read_double_quoted_string buf =
+and read_double_quoted_string vy_inside_node buf =
   parse
-  | '"'       { STRING (Buffer.contents buf) }
-  | '\\' '/'  { Buffer.add_char buf '/'; read_double_quoted_string buf lexbuf }
-  | '\\' '\\' { Buffer.add_char buf '\\'; read_double_quoted_string buf lexbuf }
-  | '\\' 'b'  { Buffer.add_char buf '\b'; read_double_quoted_string buf lexbuf }
-  | '\\' 'f'  { Buffer.add_char buf '\012'; read_double_quoted_string buf lexbuf }
-  | '\\' 'n'  { Buffer.add_char buf '\n'; read_double_quoted_string buf lexbuf }
-  | '\\' 'r'  { Buffer.add_char buf '\r'; read_double_quoted_string buf lexbuf }
-  | '\\' 't'  { Buffer.add_char buf '\t'; read_double_quoted_string buf lexbuf }
-  | '\\' '\'' { Buffer.add_char buf '\''; read_double_quoted_string buf lexbuf }
-  | '\\' '"' { Buffer.add_char buf '"'; read_double_quoted_string buf lexbuf }
-  | '\n'      { Lexing.new_line lexbuf; Buffer.add_char buf '\n'; read_double_quoted_string buf lexbuf }
+  | '"'       { (vy_inside_node, STRING (Buffer.contents buf)) }
+  | '\\' '/'  { Buffer.add_char buf '/'; read_double_quoted_string vy_inside_node buf lexbuf }
+  | '\\' '\\' { Buffer.add_char buf '\\'; read_double_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 'b'  { Buffer.add_char buf '\b'; read_double_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 'f'  { Buffer.add_char buf '\012'; read_double_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 'n'  { Buffer.add_char buf '\n'; read_double_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 'r'  { Buffer.add_char buf '\r'; read_double_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 't'  { Buffer.add_char buf '\t'; read_double_quoted_string vy_inside_node buf lexbuf }
+  | '\\' '\'' { Buffer.add_char buf '\''; read_double_quoted_string vy_inside_node buf lexbuf }
+  | '\\' '"' { Buffer.add_char buf '"'; read_double_quoted_string vy_inside_node buf lexbuf }
+  | '\n'      { Lexing.new_line lexbuf; Buffer.add_char buf '\n'; read_double_quoted_string vy_inside_node buf lexbuf }
   | [^ '"' '\\']+
     { Buffer.add_string buf (Lexing.lexeme lexbuf);
-      read_double_quoted_string buf lexbuf
+      read_double_quoted_string vy_inside_node buf lexbuf
     }
   | eof { lexing_error lexbuf "Quoted string is missing the closing double quote" }
 
-and read_single_quoted_string buf =
+and read_single_quoted_string vy_inside_node buf =
   parse
-  | '''       { STRING (Buffer.contents buf) }
-  | '\\' '/'  { Buffer.add_char buf '/'; read_single_quoted_string buf lexbuf }
-  | '\\' '\\' { Buffer.add_char buf '\\'; read_single_quoted_string buf lexbuf }
-  | '\\' 'b'  { Buffer.add_char buf '\b'; read_single_quoted_string buf lexbuf }
-  | '\\' 'f'  { Buffer.add_char buf '\012'; read_single_quoted_string buf lexbuf }
-  | '\\' 'n'  { Buffer.add_char buf '\n'; read_single_quoted_string buf lexbuf }
-  | '\\' 'r'  { Buffer.add_char buf '\r'; read_single_quoted_string buf lexbuf }
-  | '\\' 't'  { Buffer.add_char buf '\t'; read_single_quoted_string buf lexbuf }
-  | '\\' '\'' { Buffer.add_char buf '\''; read_single_quoted_string buf lexbuf }
-  | '\\' '"' { Buffer.add_char buf '"'; read_single_quoted_string buf lexbuf }
-  | '\n'      { Lexing.new_line lexbuf; Buffer.add_char buf '\n'; read_single_quoted_string buf lexbuf }
+  | '''       { (vy_inside_node, STRING (Buffer.contents buf)) }
+  | '\\' '/'  { Buffer.add_char buf '/'; read_single_quoted_string vy_inside_node buf lexbuf }
+  | '\\' '\\' { Buffer.add_char buf '\\'; read_single_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 'b'  { Buffer.add_char buf '\b'; read_single_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 'f'  { Buffer.add_char buf '\012'; read_single_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 'n'  { Buffer.add_char buf '\n'; read_single_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 'r'  { Buffer.add_char buf '\r'; read_single_quoted_string vy_inside_node buf lexbuf }
+  | '\\' 't'  { Buffer.add_char buf '\t'; read_single_quoted_string vy_inside_node buf lexbuf }
+  | '\\' '\'' { Buffer.add_char buf '\''; read_single_quoted_string vy_inside_node buf lexbuf }
+  | '\\' '"' { Buffer.add_char buf '"'; read_single_quoted_string vy_inside_node buf lexbuf }
+  | '\n'      { Lexing.new_line lexbuf; Buffer.add_char buf '\n'; read_single_quoted_string vy_inside_node buf lexbuf }
   | [^ ''' '\\']+
     { Buffer.add_string buf (Lexing.lexeme lexbuf);
-      read_single_quoted_string buf lexbuf
+      read_single_quoted_string vy_inside_node buf lexbuf
     }
   | eof { lexing_error lexbuf "Quoted string is missing the closing single quote" }
 
-and read_comment buf =
+and read_comment vy_inside_node buf =
   parse
   | "*/"
-      { COMMENT (Buffer.contents buf) }
+      { (vy_inside_node, COMMENT (Buffer.contents buf)) }
   | _
       { Buffer.add_string buf (Lexing.lexeme lexbuf);
-        read_comment buf lexbuf
+        read_comment vy_inside_node buf lexbuf
       }
 
 (*
 
-If you are curious how the original parsers handled the issue: they did not.
+If you are curious how the original parsers from Vyatta handled the issue: they did not.
+
 The CStore parser cheated by reading data from command definitions to resolve
 the ambiguities, which made it impossible to use in standalone config
 manipulation programs like migration scripts.
