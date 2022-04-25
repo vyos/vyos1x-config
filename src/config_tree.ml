@@ -1,4 +1,5 @@
 type value_behaviour = AddValue | ReplaceValue
+type command = Set | Delete
 
 exception Duplicate_value
 exception Node_has_no_value
@@ -20,6 +21,11 @@ let default_data = {
 }
 
 let make name = Vytree.make default_data name
+
+let op_to_string op =
+    match op with
+    | Set -> "set"
+    | Delete -> "delete"
 
 let replace_value node path value =
   let data = {default_data with values=[value]} in
@@ -95,19 +101,32 @@ let is_tag node path =
     let data = Vytree.get_data node path in
     data.tag
 
+let get_subtree ?(with_node=false) node path =
+    try
+        let n = Vytree.get node path in
+        if with_node then
+            Vytree.make_full default_data "root" [n]
+        else
+            Vytree.make_full default_data "root" (Vytree.children_of_node n)
+    with Vytree.Nonexistent_path -> make "root"
+
 module Renderer =
 struct
     (* Rendering configs as set commands *)
-    let render_set_path path value =
+    let render_set_path ?(op=Set) path value =
         let v = Printf.sprintf "\'%s\'" value in
-        List.append path [v] |> String.concat " " |> Printf.sprintf "set %s"
+        List.append path [v] |> String.concat " " |> Printf.sprintf "%s %s" (op_to_string op)
 
-    let rec render_commands path ct =
+    let rec render_commands ?(op=Set) path ct =
         let new_path = List.append path [Vytree.name_of_node ct] in
         let new_path_str = String.concat " " new_path in
         let data = Vytree.data_of_node ct in
         (* Get the node comment, if any *)
-        let comment = Util.default "" data.comment in 
+        let comment =
+            match op with
+            | Set -> Util.default "" data.comment
+            | Delete -> ""
+        in
         let comment_cmd = (if comment = "" then "" else Printf.sprintf "comment %s \'%s\'" new_path_str comment) in
         let child_names = Vytree.list_children ct in
         (* Now handle the different cases for nodes with and without children *)
@@ -120,20 +139,20 @@ struct
                  match values with
                  | [] ->
                       (* Valueless leaf node *)
-                      String.concat " " new_path |> Printf.sprintf "set %s"
+                      String.concat " " new_path |> Printf.sprintf "%s %s" (op_to_string op)
                  | [v] ->
                       (* Single value, just one command *)
-                      render_set_path new_path v
+                      render_set_path ~op:op new_path v
                  | vs ->
                       (* A leaf node with multiple values *)
-                      List.map (render_set_path new_path) vs |> String.concat "\n"
+                      List.map (render_set_path ~op:op new_path) vs |> String.concat "\n"
                   end
               in
               if comment_cmd = "" then cmds else Printf.sprintf "%s\n%s" cmds comment_cmd
         | _ :: _ ->
             (* A node with children *)
             let children = List.map (fun n -> Vytree.get ct [n]) child_names in
-            let rendered_children = List.map (render_commands new_path) children in
+            let rendered_children = List.map (render_commands ~op:op new_path) children in
             let cmds = String.concat "\n" rendered_children in
             if comment_cmd = "" then cmds else Printf.sprintf "%s\n%s" cmds comment_cmd
 
@@ -239,14 +258,14 @@ module JSONRenderer = struct
         Printf.sprintf "{%s}" child_configs
 end (* JSONRenderer *)
 
-let render_commands node path =
+let render_commands ?(op=Set) node path =
     let node =
 	match path with
         | [] -> node
         | _ -> Vytree.get node path
     in
     let children = Vytree.children_of_node node in
-    let commands = List.map (Renderer.render_commands path) children in
+    let commands = List.map (Renderer.render_commands ~op:op path) children in
     String.concat "\n" commands
 
 let render_config = Renderer.render_config

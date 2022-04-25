@@ -1,4 +1,5 @@
 type value_behaviour = AddValue | ReplaceValue
+type command = Set | Delete
 
 exception Duplicate_value
 exception Node_has_no_value
@@ -33,7 +34,9 @@ val set_tag : t -> string list -> bool -> t
 
 val is_tag : t -> string list -> bool
 
-val render_commands : t -> string list -> string
+val get_subtree : ?with_node:bool -> t -> string list -> t
+
+val render_commands : ?op:command -> t -> string list -> string
 
 val render_config : t -> string
 
