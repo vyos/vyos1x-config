@@ -60,10 +60,10 @@ let update_path path left_opt right_opt =
     else path @ [name]
 
 (* tree diff algorithm: walk the tree pair, calling a function of type
-   diff_func at bifurcation points; f acts as a form of continuation.
+   diff_func for each comparison.
    The idea of matching on pairs of (node opt) is from
    https://github.com/LukeBurgessYeo/tree-diff
-*)
+ *)
 let rec diff (path : string list) (f : diff_func) (l : (Config_tree.t option * Config_tree.t option) list) =
     match l with
     | [] -> ()
@@ -148,6 +148,29 @@ let decorate_trees (trees : diff_trees) ?(recurse=true) (path : string list) (m 
                       if not (is_empty inter_vals) then
                           trees.inter := clone ~set_values:(Some inter_vals) trees.left !(trees.inter) path
 
+(* define the 'trim' diff_func:
+
+   One can use the diff algorithm with this function to produce 'delete'
+   commands from the sub(-tract) tree. The subtract tree contains full paths
+   not present in the right hand side of the original comparison; the delete
+   tree is the subtract tree with paths ending at the first subtracted node.
+
+   Initial application of diff algorithm with function 'diff_trees':
+       left, right -> added, subtracted, intersection
+   Second application of diff algorithm with function 'trim_trees':
+       subtracted, right -> _, delete, _
+
+   One needs to keep the distinction of sub and delete trees: the delete
+   tree is used to produce correct 'delete' commands; the sub tree contains
+   complete information of the difference, used, for example, in recursively
+   detecting changes at a node between the effective/session configs.
+
+   The two trees could be produced in one pass of the diff function, but is
+   an overloaded use and would gain little in optimization: the trim-ing
+   walk will be on a smaller tree, only involve diff_func calls on the
+   subtracted nodes, and will end at the first node not present in the
+   comparison.
+ *)
 let trim_trees (trees : diff_trees) ?(recurse=false) (path : string list) (m : change) =
     match m with
     | Added -> ()
@@ -201,6 +224,7 @@ let diff_tree path left right =
     let ret = graft_tree !(trees.inter) ret ["inter"] in
     ret
 
+(* wrapper to return trimmed tree for 'delete' commands *)
 let trim_tree left right =
     let trees = make_diff_trees left right in
     diff [] (trim_trees trees) [(Option.some left, Option.some right)];
