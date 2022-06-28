@@ -16,9 +16,9 @@ exception Empty_comparison
 module ValueS = Set.Make(struct type t = string let compare = compare end)
 
 let make_diff_trees l r = { left = l; right = r;
-                           add = ref (Config_tree.make "root");
-                           sub = ref (Config_tree.make "root");
-                           inter = ref (Config_tree.make "root");
+                           add = ref (Config_tree.make "");
+                           sub = ref (Config_tree.make "");
+                           inter = ref (Config_tree.make "");
 }
 
 let name_of n = Vytree.name_of_node n
@@ -56,7 +56,7 @@ let get_opt_name left_opt right_opt =
 
 let update_path path left_opt right_opt =
     let name = get_opt_name left_opt right_opt in
-    if name = "root" then path
+    if name = "" then path
     else path @ [name]
 
 (* tree diff algorithm: walk the tree pair, calling a function of type
@@ -198,7 +198,7 @@ let trim_trees (trees : diff_trees) ?(recurse=false) (path : string list) (m : c
 let tree_at_path path node =
     try
         let node = Vytree.get node path in
-        make Config_tree.default_data "root" [node]
+        make Config_tree.default_data "" [node]
     with Vytree.Nonexistent_path -> raise Empty_comparison
 
 (* call recursive diff on config_trees with decorate_trees as the diff_func *)
@@ -218,7 +218,7 @@ let diff_tree path left right =
     let add_node = Config_tree.make "add" in
     let sub_node = Config_tree.make "sub" in
     let int_node = Config_tree.make "inter" in
-    let ret = make Config_tree.default_data "root" [add_node; sub_node; int_node] in
+    let ret = make Config_tree.default_data "" [add_node; sub_node; int_node] in
     let ret = graft_tree !(trees.add) ret ["add"] in
     let ret = graft_tree !(trees.sub) ret ["sub"] in
     let ret = graft_tree !(trees.inter) ret ["inter"] in
