@@ -105,10 +105,10 @@ let get_subtree ?(with_node=false) node path =
     try
         let n = Vytree.get node path in
         if with_node then
-            Vytree.make_full default_data "root" [n]
+            Vytree.make_full default_data "" [n]
         else
-            Vytree.make_full default_data "root" (Vytree.children_of_node n)
-    with Vytree.Nonexistent_path -> make "root"
+            Vytree.make_full default_data "" (Vytree.children_of_node n)
+    with Vytree.Nonexistent_path -> make ""
 
 module Renderer =
 struct
