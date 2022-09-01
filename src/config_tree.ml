@@ -211,9 +211,7 @@ struct
            never themselves tag nodes *)
         let inner = List.map (render_node indent (level + 1)) children in
         let inner = String.concat "" inner in
-        if String.contains name ' ' then
-        Printf.sprintf "%s%s%s \"%s\" {\n%s%s}\n" comment indent_str parent name inner indent_str
-        else Printf.sprintf "%s%s%s %s {\n%s%s}\n" comment indent_str parent name inner indent_str
+        Printf.sprintf "%s%s%s %s {\n%s%s}\n" comment indent_str parent name inner indent_str
 
   let render_config node =
     let children = Vytree.children_of_node node in
