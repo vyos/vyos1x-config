@@ -83,7 +83,8 @@ let rec insert ?(position=Default) ?(children=[]) node path data =
             let new_node = insert ~position:position ~children:children next_child' names data in
             replace node new_node
         | None ->
-            raise (Insert_error "Path does not exist")
+            let s = Printf.sprintf "Non-existent intermediary node: \'%s\'" name in
+            raise (Insert_error s)
 
 (** Given a node N check if it has children with duplicate names,
     and merge subsequent children's children into the first child by
