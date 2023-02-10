@@ -44,8 +44,24 @@ let right_opt_pairs n m =
                 name_of x = name_of y) in
         (maybe_node, Some y))
 
+(* this is module option 'compare', but with Some _ preceding None, which is
+   useful for maintaing left-right -> top-down order for show_diff
+ *)
+let opt_cmp o0 o1 =
+    match o0, o1 with
+    | Some v0, Some v1 -> compare v0 v1
+    | None, None -> 0
+    | None, Some _ -> 1
+    | Some _, None -> -1
+
+let tuple_cmp t1 t2 =
+    match t1, t2 with
+    | (x1, y1), (x2, y2) ->
+            let first = opt_cmp x1 x2 in
+            if first <> 0 then first else opt_cmp y1 y2
+
 let opt_zip n m =
-    left_opt_pairs n m @ right_opt_pairs n m |> List.sort_uniq compare
+    left_opt_pairs n m @ right_opt_pairs n m |> List.sort_uniq tuple_cmp
 
 let get_opt_name left_opt right_opt =
     match left_opt, right_opt with
@@ -229,3 +245,110 @@ let trim_tree left right =
     let trees = make_diff_trees left right in
     diff [] (trim_trees trees) [(Option.some left, Option.some right)];
     !(trees.sub)
+
+(* the following builds a diff_func to return a unified diff string of
+   configs or config commands
+ *)
+let list_but_last l =
+    let len = List.length l in
+    List.filteri (fun i _ -> i < len - 1) l
+
+let ppath_to_string_if_new (c: string list ref) (path: string list) =
+    let p = list_but_last path in
+    if (!c <> p) then
+        (c := p; Printf.sprintf "[%s]\n" (String.concat " " !c)) else ""
+
+let marked_render mark node =
+    let lines = Config_tree.render_config node in
+    let l = String.split_on_char '\n' lines in
+    let m =
+        List.map (fun s -> if (String.length s) > 0 then mark ^ s else s) l in
+    String.concat "\n" m
+
+let added_lines ?(cmds=false) node path =
+    if not cmds then marked_render "+ " (tree_at_path path node)
+    else
+        let skel = Config_tree.make "" in
+        let snode = clone node skel path in
+        (Config_tree.render_commands ~op:Set snode []) ^ "\n"
+
+let removed_lines ?(cmds=false) node path =
+    if not cmds then marked_render "- " (tree_at_path path node)
+    else
+        let skel = Config_tree.make "" in
+        let snode = clone node skel path in
+        (Config_tree.render_commands ~op:Delete snode []) ^ "\n"
+
+let order_commands (strl: string ref) =
+    let l = String.split_on_char '\n' !strl in
+    let del = List.filter (fun s -> (s <> "") && (s.[0] = 'd')) l in
+    let set = List.filter (fun s -> (s <> "") && (s.[0] = 's')) l in
+    strl := (String.concat "\n" del) ^ "\n" ^ (String.concat "\n" set) ^ "\n"
+
+let ppath = ref [""]
+
+let unified_diff ?(cmds=false) (str_diff: string ref) (trees : diff_trees) ?recurse:_ (path : string list) (m : change) =
+    match m with
+    | Added ->
+            if not cmds then str_diff := !str_diff ^ (ppath_to_string_if_new ppath path);
+            str_diff := !str_diff ^ (added_lines ~cmds:cmds trees.right path)
+    | Subtracted ->
+            if not cmds then str_diff := !str_diff ^ (ppath_to_string_if_new ppath path);
+            str_diff := !str_diff ^ (removed_lines ~cmds:cmds trees.left path)
+    | Unchanged -> ()
+    | Updated v ->
+            if not cmds then str_diff := !str_diff ^ (ppath_to_string_if_new ppath path);
+            let ov = Config_tree.get_values trees.left path in
+            match ov, v with
+            | [_], [_] ->
+                    str_diff := !str_diff ^ (removed_lines ~cmds:cmds trees.left path);
+                    str_diff := !str_diff ^ (added_lines ~cmds:cmds trees.right path)
+            | _, _ -> let ov_set = ValueS.of_list ov in
+                      let v_set = ValueS.of_list v in
+                      let sub_vals = ValueS.elements (ValueS.diff ov_set v_set) in
+                      let add_vals = ValueS.elements (ValueS.diff v_set ov_set) in
+                      if not (is_empty sub_vals) then
+                          (trees.sub := clone ~set_values:(Some sub_vals) trees.left !(trees.sub) path;
+                           str_diff := !str_diff ^ (removed_lines ~cmds:cmds !(trees.sub) path));
+                      if not (is_empty add_vals) then
+                          (trees.add := clone ~set_values:(Some add_vals) trees.right !(trees.add) path;
+                           str_diff := !str_diff ^ (added_lines ~cmds:cmds !(trees.add) path))
+
+let add_empty_path src_node dest_node path =
+    clone ~recurse:false ~set_values:(Some []) src_node dest_node path
+
+let compare_at_path_maybe_empty left right path =
+    let left =
+        try
+            tree_at_path path left
+        with Empty_comparison ->
+            try
+                let left = add_empty_path right left path in
+                tree_at_path path left
+             with Vytree.Nonexistent_path ->
+                 raise Empty_comparison
+     and right =
+        try
+            tree_at_path path right
+        with Empty_comparison ->
+            try
+                let right = add_empty_path left right path in
+                tree_at_path path right
+             with Vytree.Nonexistent_path ->
+                 raise Empty_comparison
+    in (left, right)
+
+let show_diff ?(cmds=false) path left right =
+    if (name_of left) <> (name_of right) then
+        raise Incommensurable
+    else
+        let (left, right) =
+            if (path <> []) then
+                compare_at_path_maybe_empty left right path
+            else (left, right) in
+        let trees = make_diff_trees left right in
+        let udiff = ref "" in
+        ppath := [""];
+        diff [] (unified_diff ~cmds:cmds udiff trees) [(Option.some left, Option.some right)];
+        if cmds then order_commands udiff;
+        !udiff

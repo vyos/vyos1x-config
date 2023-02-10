@@ -20,4 +20,4 @@ val trim_trees : diff_trees -> ?recurse:bool -> string list -> change -> unit
 val compare : string list -> Config_tree.t -> Config_tree.t -> diff_trees
 val diff_tree : string list -> Config_tree.t -> Config_tree.t -> Config_tree.t
 val trim_tree : Config_tree.t -> Config_tree.t -> Config_tree.t
-
+val show_diff : ?cmds:bool -> string list -> Config_tree.t -> Config_tree.t -> string
