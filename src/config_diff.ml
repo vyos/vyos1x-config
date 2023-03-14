@@ -13,7 +13,12 @@ type diff_trees = {
 exception Incommensurable
 exception Empty_comparison
 
-module ValueS = Set.Make(struct type t = string let compare = compare end)
+module ValueOrd = struct
+    type t = string
+    let compare a b =
+        Util.lexical_numeric_compare a b
+end
+module ValueS = Set.Make(ValueOrd)
 
 let make_diff_trees l r = { left = l; right = r;
                            add = ref (Config_tree.make "");
@@ -111,13 +116,13 @@ let rec clone_path ?(recurse=true) ?(set_values=None) old_root new_root path_don
             | None -> data_of old_node
         in
         if recurse then
-            Vytree.insert ~children:(children_of old_node) new_root path_total data
+            Vytree.insert ~position:Lexical ~children:(children_of old_node) new_root path_total data
         else
-            Vytree.insert new_root path_total data
+            Vytree.insert ~position:Lexical new_root path_total data
     | name :: names ->
         let path_done = path_done @ [name] in
         let old_node = Vytree.get old_root path_done in
-        let new_root = Vytree.insert new_root path_done (data_of old_node) in
+        let new_root = Vytree.insert ~position:Lexical new_root path_done (data_of old_node) in
         clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_done names
 
 let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
@@ -132,7 +137,7 @@ let rec graft_children children stock path =
     match children with
     | [] -> stock
     | x::xs ->
-            let stock = Vytree.insert ~children:(children_of x) stock (path @ [name_of x]) (data_of x)
+            let stock = Vytree.insert ~position:Lexical ~children:(children_of x) stock (path @ [name_of x]) (data_of x)
             in graft_children xs stock path
 
 let graft_tree stem stock path =
