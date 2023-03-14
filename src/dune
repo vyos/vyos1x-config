@@ -7,4 +7,7 @@
  (name vyos1x)
  (public_name vyos1x-config)
  (libraries yojson menhirLib)
- (preprocess (pps ppx_deriving_yojson)))
+ (preprocess (pps ppx_deriving_yojson))
+ (foreign_stubs
+  (language c)
+  (names lexical_numeric_compare)))
