@@ -133,16 +133,6 @@ let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
             let path_remaining = Vylist.complement path path_existing in
             clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_existing path_remaining
 
-let rec graft_children children stock path =
-    match children with
-    | [] -> stock
-    | x::xs ->
-            let stock = Vytree.insert ~position:Lexical ~children:(children_of x) stock (path @ [name_of x]) (data_of x)
-            in graft_children xs stock path
-
-let graft_tree stem stock path =
-    graft_children (children_of stem) stock path
-
 let is_empty l = (l = [])
 
 (* define the diff_func; in this instance, we imperatively build the difference trees *)
@@ -236,13 +226,10 @@ let compare path left right =
 (* wrapper to return diff trees *)
 let diff_tree path left right =
     let trees = compare path left right in
-    let add_node = Config_tree.make "add" in
-    let sub_node = Config_tree.make "sub" in
-    let int_node = Config_tree.make "inter" in
+    let add_node = make Config_tree.default_data "add" (children_of !(trees.add)) in
+    let sub_node = make Config_tree.default_data "sub" (children_of !(trees.sub)) in
+    let int_node = make Config_tree.default_data "inter" (children_of !(trees.inter)) in
     let ret = make Config_tree.default_data "" [add_node; sub_node; int_node] in
-    let ret = graft_tree !(trees.add) ret ["add"] in
-    let ret = graft_tree !(trees.sub) ret ["sub"] in
-    let ret = graft_tree !(trees.inter) ret ["inter"] in
     ret
 
 (* wrapper to return trimmed tree for 'delete' commands *)
