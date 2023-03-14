@@ -19,6 +19,8 @@ val find_or_fail : 'a t -> string -> 'a t
 
 val adopt : 'a t -> 'a t -> 'a t
 
+val replace : 'a t -> 'a t -> 'a t
+
 val insert : ?position:position -> ?children:('a t list) -> 'a t -> string list -> 'a -> 'a t
 
 val insert_multi_level : 'a -> 'a t -> string list -> string list -> 'a -> 'a t

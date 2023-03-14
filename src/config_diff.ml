@@ -12,13 +12,7 @@ type diff_trees = {
 
 exception Incommensurable
 exception Empty_comparison
-
-module ValueOrd = struct
-    type t = string
-    let compare a b =
-        Util.lexical_numeric_compare a b
-end
-module ValueS = Set.Make(ValueOrd)
+exception Nonexistent_child
 
 let make_diff_trees l r = { left = l; right = r;
                            add = ref (Config_tree.make "");
@@ -30,6 +24,20 @@ let name_of n = Vytree.name_of_node n
 let data_of n = Vytree.data_of_node n
 let children_of n = Vytree.children_of_node n
 let make data name children = Vytree.make_full data name children
+
+module ValueOrd = struct
+    type t = string
+    let compare a b =
+        Util.lexical_numeric_compare a b
+end
+module ValueS = Set.Make(ValueOrd)
+
+module TreeOrd = struct
+    type t = Config_tree.t
+    let compare a b =
+        Util.lexical_numeric_compare (name_of a) (name_of b)
+end
+module ChildrenS = Set.Make(TreeOrd)
 
 let (^~) (node : Config_tree.t) (node' : Config_tree.t) =
   name_of node = name_of node' &&
@@ -344,3 +352,35 @@ let show_diff ?(cmds=false) path left right =
         diff [] (unified_diff ~cmds:cmds udiff trees) [(Option.some left, Option.some right)];
         if cmds then order_commands udiff;
         !udiff
+
+let union_of_values (n : Config_tree.t) (m : Config_tree.t) =
+    let set_n = ValueS.of_list (data_of n).values in
+    let set_m = ValueS.of_list (data_of m).values in
+    ValueS.elements (ValueS.union set_n set_m)
+
+let union_of_children n m =
+    let set_n = ChildrenS.of_list (children_of n) in
+    let set_m = ChildrenS.of_list (children_of m) in
+    ChildrenS.elements (ChildrenS.union set_n set_m)
+
+(* tree_union is currently used only for unit tests, so only values of data
+   are considered. Should there be a reason to expose it in the future,
+   consistency check and union of remaining data will need to be added.
+ *)
+let rec tree_union s t =
+    let child_of_union s t c =
+        let s_c = Vytree.find s (name_of c) in
+        let t_c = Vytree.find t (name_of c) in
+        match s_c, t_c with
+        | Some child, None -> clone s t [(name_of child)]
+        | None, Some _ -> t
+        | Some u, Some v ->
+                if u ^~ v then
+                    let values = union_of_values u v in
+                    let data = {(data_of v) with Config_tree.values = values} in
+                    Vytree.replace t (Vytree.make data (name_of v))
+                else
+                    Vytree.replace t (tree_union u v)
+        | None, None -> raise Nonexistent_child
+    in
+    List.fold_left (fun x c -> child_of_union s x c) t (union_of_children s t)
