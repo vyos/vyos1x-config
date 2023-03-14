@@ -4,7 +4,7 @@ type 'a	t = {
     children: 'a t list
 } [@@deriving yojson]
 
-type position = Before of string | After of string | End | Default
+type position = Before of string | After of string | Lexical | End | Default
 
 exception Empty_path
 exception Duplicate_child
@@ -27,6 +27,8 @@ let insert_immediate ?(position=Default) node name data children =
         | End -> node.children @ [new_node]
         | Before s -> Vylist.insert_before (fun x -> x.name = s) new_node node.children
         | After s -> Vylist.insert_after (fun x -> x.name = s) new_node node.children
+        | Lexical ->
+            Vylist.insert_compare (fun x y -> Util.lexical_numeric_compare x.name y.name) new_node node.children
     in { node with children = children' }
 
 let delete_immediate node name =

@@ -5,7 +5,7 @@ exception Duplicate_child
 exception Nonexistent_path
 exception Insert_error of string
 
-type position = Before of string | After of string | End | Default
+type position = Before of string | After of string | Lexical | End | Default
 
 val make : 'a -> string -> 'a t
 val make_full : 'a -> string -> ('a t) list -> 'a t
