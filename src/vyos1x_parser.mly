@@ -20,6 +20,7 @@
     (* When merging nodes with values, append values of subsequent nodes to the
        first one *)
     let merge_data l r = {l with values=(List.append l.values r.values)}
+    let order = Util.lexical_numeric_compare
 %}
 
 %token <string> IDENTIFIER
@@ -66,7 +67,8 @@ node:
     {
         let node =
             Vytree.make_full {default_data with comment=comment} name [] in
-        let node = List.fold_left Vytree.adopt node (List.rev children) |> Vytree.merge_children merge_data in
+        let node = List.fold_left Vytree.adopt node (List.rev children) |> Vytree.merge_children merge_data order in
+        let node = Vytree.sort_children order node in
         try
             List.iter find_duplicate_children (Vytree.children_of_node node);
             node
@@ -87,8 +89,10 @@ tag_node:
       let outer_node = Vytree.make_full {default_data with tag=true} name [] in
       let inner_node =
           Vytree.make_full {default_data with comment=comment} tag [] in
-      let inner_node = List.fold_left Vytree.adopt inner_node (List.rev children) |> Vytree.merge_children merge_data in
+      let inner_node = List.fold_left Vytree.adopt inner_node (List.rev children) |> Vytree.merge_children merge_data order in
+      let inner_node = Vytree.sort_children order inner_node in
       let node = Vytree.adopt outer_node inner_node in
+      let node = Vytree.sort_children order node in
       try
           List.iter find_duplicate_children (Vytree.children_of_node inner_node);
           node
@@ -104,7 +108,8 @@ node_content: n = node { n } | n = leaf_node { n } | n = tag_node { n };
  | ns = list(node_content); EOF
  {
     let root = make "" in
-    let root = List.fold_left Vytree.adopt root (List.rev ns) |> Vytree.merge_children merge_data in
+    let root = List.fold_left Vytree.adopt root (List.rev ns) |> Vytree.merge_children merge_data order in
+    let root = Vytree.sort_children order root in
         try
             List.iter find_duplicate_children (Vytree.children_of_node root);
             root

@@ -25,7 +25,7 @@ val insert : ?position:position -> ?children:('a t list) -> 'a t -> string list 
 
 val insert_multi_level : 'a -> 'a t -> string list -> string list -> 'a -> 'a t
 
-val merge_children : ('a -> 'a -> 'a) -> 'a t -> 'a t
+val merge_children : ('a -> 'a -> 'a) -> (string -> string -> int) -> 'a t -> 'a t
 
 val delete : 'a t -> string list -> 'a t
 
@@ -46,6 +46,8 @@ val exists : 'a t -> string list -> bool
 val children_of_path : 'a t -> string list -> string list
 
 val sorted_children_of_node : (string -> string -> int) -> 'a t -> ('a t) list
+
+val sort_children : (string -> string -> int) -> 'a t -> 'a t
 
 val copy : 'a t -> string list -> string list -> 'a t
 

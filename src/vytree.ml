@@ -88,6 +88,14 @@ let rec insert ?(position=Default) ?(children=[]) node path data =
             let s = Printf.sprintf "Non-existent intermediary node: \'%s\'" name in
             raise (Insert_error s)
 
+let sorted_children_of_node cmp node =
+    let names = list_children node in
+    let names = List.sort cmp names in
+    List.map (find_or_fail node) names
+
+let sort_children cmp node =
+    {node with children = (sorted_children_of_node cmp node)}
+
 (** Given a node N check if it has children with duplicate names,
     and merge subsequent children's children into the first child by
     that name.
@@ -99,9 +107,11 @@ let rec insert ?(position=Default) ?(children=[]) node path data =
     may be normal and even expected, such as "ethernet eth0" and "ethernet eth1"
     in the "curly" format.
  *)
-let merge_children merge_data node =
+let merge_children merge_data cmp node =
     (* Given a node N and a list of nodes NS, find all nodes in NS that
-       have the same name as N and merge their children into N *)
+       have the same name as N and merge their children into N, sorting
+       children by a comparison function cmp (string -> string -> int) on
+       node names *)
     let rec merge_into n ns =
         match ns with
         | [] -> n
@@ -110,6 +120,7 @@ let merge_children merge_data node =
                 let children = List.append n.children n'.children in
                 let data = merge_data n.data n'.data in
                 let n = {n with children=children; data=data} in
+                let n = sort_children cmp n in
                 merge_into n ns'
             else merge_into n ns'
     in
@@ -178,11 +189,6 @@ let get_existent_path node path =
 let children_of_path node path =
     let node' = get node path in
     list_children node'
-
-let sorted_children_of_node cmp node =
-    let names = list_children node in
-    let names = List.sort cmp names in
-    List.map (find_or_fail node) names
 
 let copy node old_path new_path =
     if exists node new_path then raise Duplicate_child else
