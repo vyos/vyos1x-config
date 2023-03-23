@@ -1,5 +1,7 @@
 exception Syntax_error of ((int * int) option * string)
 
+external lex_numeric_compare: string -> string -> int = "caml_lex_numeric_compare"
+
 external length : string -> int = "%string_length"
 external unsafe_get : string -> int -> char = "%string_unsafe_get"
 
@@ -29,3 +31,6 @@ let default default_value opt =
   match opt with
   | None -> default_value
   | Some value -> value
+
+let lexical_numeric_compare s t =
+    lex_numeric_compare s t
