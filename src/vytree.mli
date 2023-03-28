@@ -5,7 +5,7 @@ exception Duplicate_child
 exception Nonexistent_path
 exception Insert_error of string
 
-type position = Before of string | After of string | End | Default
+type position = Before of string | After of string | Lexical | End | Default
 
 val make : 'a -> string -> 'a t
 val make_full : 'a -> string -> ('a t) list -> 'a t
@@ -19,11 +19,13 @@ val find_or_fail : 'a t -> string -> 'a t
 
 val adopt : 'a t -> 'a t -> 'a t
 
+val replace : 'a t -> 'a t -> 'a t
+
 val insert : ?position:position -> ?children:('a t list) -> 'a t -> string list -> 'a -> 'a t
 
 val insert_multi_level : 'a -> 'a t -> string list -> string list -> 'a -> 'a t
 
-val merge_children : ('a -> 'a -> 'a) -> 'a t -> 'a t
+val merge_children : ('a -> 'a -> 'a) -> (string -> string -> int) -> 'a t -> 'a t
 
 val delete : 'a t -> string list -> 'a t
 
@@ -44,6 +46,8 @@ val exists : 'a t -> string list -> bool
 val children_of_path : 'a t -> string list -> string list
 
 val sorted_children_of_node : (string -> string -> int) -> 'a t -> ('a t) list
+
+val sort_children : (string -> string -> int) -> 'a t -> 'a t
 
 val copy : 'a t -> string list -> string list -> 'a t
 

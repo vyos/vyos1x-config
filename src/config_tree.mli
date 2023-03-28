@@ -38,7 +38,7 @@ val get_subtree : ?with_node:bool -> t -> string list -> t
 
 val render_commands : ?op:command -> t -> string list -> string
 
-val render_config : t -> string
+val render_config : ?ord_val:bool -> t -> string
 
 val render_json : t -> string
 

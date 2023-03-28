@@ -28,6 +28,12 @@ let rec insert_after p x xs =
     | y :: ys -> if (p y) then y :: x :: ys
                  else y :: (insert_after p x ys)
 
+let rec insert_compare p x xs =
+    match xs with
+    | [] -> [x]
+    | y :: ys -> if (p x y <= 0) then x :: y :: ys
+                 else y :: (insert_compare p x ys)
+
 let complement xs ys =
     let rec aux xs ys =
         match xs, ys with

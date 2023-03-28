@@ -159,11 +159,16 @@ struct
   (* Rendering config as a VyOS/EdgeOS config file *)
   let make_indent indent level = String.make (level * indent) ' '
 
-  let render_values indent_str name values =
+  let render_values ?(ord_val=false) indent_str name values =
     match values with
     | [] -> Printf.sprintf "%s%s { }\n" indent_str name
     | [v] -> Printf.sprintf "%s%s \"%s\"\n" indent_str name (Util.escape_string v)
     | _  -> 
+      let values =
+          if ord_val then
+              List.sort Util.lexical_numeric_compare values
+          else values
+      in
       let rendered = List.map (fun s -> Printf.sprintf "%s%s \"%s\"" indent_str name (Util.escape_string s)) values in
       let rendered = String.concat "\n" rendered in
       Printf.sprintf "%s\n" rendered
@@ -173,34 +178,34 @@ struct
     | None -> ""
     | Some c ->  Printf.sprintf "%s/* %s */\n" indent c
 
-  let rec render_node indent level node =
+  let rec render_node ?(ord_val=false) indent level node =
     let indent_str = make_indent indent level in
     let name = Vytree.name_of_node node in
     let data = Vytree.data_of_node node in
     let is_tag = data.tag in 
     let comment = render_comment indent_str data.comment in
-    let values = render_values indent_str name data.values in
+    let values = render_values ~ord_val:ord_val indent_str name data.values in
     let children = Vytree.children_of_node node in
     match children with
     | [] -> Printf.sprintf "%s%s" comment values
     | _ :: _ ->
       if is_tag then 
         begin
-          let inner = List.map (render_tag_node_child indent level name) children in
+          let inner = List.map (render_tag_node_child ~ord_val:ord_val indent level name) children in
           String.concat "" inner
         end
       else
         begin
-          let inner = List.map (render_node indent (level + 1)) children in
+          let inner = List.map (render_node ~ord_val:ord_val indent (level + 1)) children in
           let inner = String.concat "" inner in
           Printf.sprintf "%s%s%s {\n%s%s}\n" comment indent_str name inner indent_str
         end
-  and render_tag_node_child indent level parent node =
+  and render_tag_node_child ?(ord_val=false) indent level parent node =
     let indent_str = make_indent indent level in
     let name = Vytree.name_of_node node in
     let data = Vytree.data_of_node node in
     let comment = render_comment indent_str data.comment in
-    let values = render_values indent_str name data.values in
+    let values = render_values ~ord_val:ord_val indent_str name data.values in
     let children = Vytree.children_of_node node in
     match children with
     (* This produces too much whitespace due to indent_str from values,
@@ -209,13 +214,13 @@ struct
     | _ ->
         (* Exploiting the fact that immediate children of tag nodes are
            never themselves tag nodes *)
-        let inner = List.map (render_node indent (level + 1)) children in
+        let inner = List.map (render_node ~ord_val:ord_val indent (level + 1)) children in
         let inner = String.concat "" inner in
         Printf.sprintf "%s%s%s %s {\n%s%s}\n" comment indent_str parent name inner indent_str
 
-  let render_config node =
+  let render_config ?(ord_val=false) node =
     let children = Vytree.children_of_node node in
-    let child_configs = List.map (render_node 4 0) children in
+    let child_configs = List.map (render_node ~ord_val:ord_val 4 0) children in
     String.concat "" child_configs
 
 end (* Renderer *)
@@ -268,7 +273,7 @@ let render_commands ?(op=Set) node path =
     let commands = List.map (Renderer.render_commands ~op:op path) children in
     String.concat "\n" commands
 
-let render_config = Renderer.render_config
+let render_config ?(ord_val=false) = Renderer.render_config ~ord_val:ord_val
 
 let render_json = JSONRenderer.render_json
 

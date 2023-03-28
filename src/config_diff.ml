@@ -12,8 +12,7 @@ type diff_trees = {
 
 exception Incommensurable
 exception Empty_comparison
-
-module ValueS = Set.Make(struct type t = string let compare = compare end)
+exception Nonexistent_child
 
 let make_diff_trees l r = { left = l; right = r;
                            add = ref (Config_tree.make "");
@@ -25,6 +24,20 @@ let name_of n = Vytree.name_of_node n
 let data_of n = Vytree.data_of_node n
 let children_of n = Vytree.children_of_node n
 let make data name children = Vytree.make_full data name children
+
+module ValueOrd = struct
+    type t = string
+    let compare a b =
+        Util.lexical_numeric_compare a b
+end
+module ValueS = Set.Make(ValueOrd)
+
+module TreeOrd = struct
+    type t = Config_tree.t
+    let compare a b =
+        Util.lexical_numeric_compare (name_of a) (name_of b)
+end
+module ChildrenS = Set.Make(TreeOrd)
 
 let (^~) (node : Config_tree.t) (node' : Config_tree.t) =
   name_of node = name_of node' &&
@@ -111,13 +124,13 @@ let rec clone_path ?(recurse=true) ?(set_values=None) old_root new_root path_don
             | None -> data_of old_node
         in
         if recurse then
-            Vytree.insert ~children:(children_of old_node) new_root path_total data
+            Vytree.insert ~position:Lexical ~children:(children_of old_node) new_root path_total data
         else
-            Vytree.insert new_root path_total data
+            Vytree.insert ~position:Lexical new_root path_total data
     | name :: names ->
         let path_done = path_done @ [name] in
         let old_node = Vytree.get old_root path_done in
-        let new_root = Vytree.insert new_root path_done (data_of old_node) in
+        let new_root = Vytree.insert ~position:Lexical new_root path_done (data_of old_node) in
         clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_done names
 
 let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
@@ -127,16 +140,6 @@ let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
             let path_existing = Vytree.get_existent_path new_root path in
             let path_remaining = Vylist.complement path path_existing in
             clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_existing path_remaining
-
-let rec graft_children children stock path =
-    match children with
-    | [] -> stock
-    | x::xs ->
-            let stock = Vytree.insert ~children:(children_of x) stock (path @ [name_of x]) (data_of x)
-            in graft_children xs stock path
-
-let graft_tree stem stock path =
-    graft_children (children_of stem) stock path
 
 let is_empty l = (l = [])
 
@@ -231,13 +234,10 @@ let compare path left right =
 (* wrapper to return diff trees *)
 let diff_tree path left right =
     let trees = compare path left right in
-    let add_node = Config_tree.make "add" in
-    let sub_node = Config_tree.make "sub" in
-    let int_node = Config_tree.make "inter" in
+    let add_node = make Config_tree.default_data "add" (children_of !(trees.add)) in
+    let sub_node = make Config_tree.default_data "sub" (children_of !(trees.sub)) in
+    let int_node = make Config_tree.default_data "inter" (children_of !(trees.inter)) in
     let ret = make Config_tree.default_data "" [add_node; sub_node; int_node] in
-    let ret = graft_tree !(trees.add) ret ["add"] in
-    let ret = graft_tree !(trees.sub) ret ["sub"] in
-    let ret = graft_tree !(trees.inter) ret ["inter"] in
     ret
 
 (* wrapper to return trimmed tree for 'delete' commands *)
@@ -352,3 +352,35 @@ let show_diff ?(cmds=false) path left right =
         diff [] (unified_diff ~cmds:cmds udiff trees) [(Option.some left, Option.some right)];
         if cmds then order_commands udiff;
         !udiff
+
+let union_of_values (n : Config_tree.t) (m : Config_tree.t) =
+    let set_n = ValueS.of_list (data_of n).values in
+    let set_m = ValueS.of_list (data_of m).values in
+    ValueS.elements (ValueS.union set_n set_m)
+
+let union_of_children n m =
+    let set_n = ChildrenS.of_list (children_of n) in
+    let set_m = ChildrenS.of_list (children_of m) in
+    ChildrenS.elements (ChildrenS.union set_n set_m)
+
+(* tree_union is currently used only for unit tests, so only values of data
+   are considered. Should there be a reason to expose it in the future,
+   consistency check and union of remaining data will need to be added.
+ *)
+let rec tree_union s t =
+    let child_of_union s t c =
+        let s_c = Vytree.find s (name_of c) in
+        let t_c = Vytree.find t (name_of c) in
+        match s_c, t_c with
+        | Some child, None -> clone s t [(name_of child)]
+        | None, Some _ -> t
+        | Some u, Some v ->
+                if u ^~ v then
+                    let values = union_of_values u v in
+                    let data = {(data_of v) with Config_tree.values = values} in
+                    Vytree.replace t (Vytree.make data (name_of v))
+                else
+                    Vytree.replace t (tree_union u v)
+        | None, None -> raise Nonexistent_child
+    in
+    List.fold_left (fun x c -> child_of_union s x c) t (union_of_children s t)
