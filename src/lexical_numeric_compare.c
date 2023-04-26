@@ -66,9 +66,9 @@ CAMLprim value caml_lex_numeric_compare(value str1, value str2) {
             return Val_int(0);
 
         }
-        // if here, pos1 == pos2, or something is horribly wrong
-        if (pos1 != pos2) caml_failwith(inconsistent);
-        pos = pos1;
+        // if a sequence of 0's were encountered, it is possible that
+        // pos1 != pos2; adjust
+        pos = pos1 > pos2 ? pos2 : pos1;
         p1 = s1;
         p2 = s2;
         len = len - pos;
