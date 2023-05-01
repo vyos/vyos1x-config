@@ -9,12 +9,19 @@ type value_constraint =
     | External of string * string option [@name "exec"]
     [@@deriving yojson]
 
+type completion_help_type =
+    | List of string [@name "list"]
+    | Path of string [@name "path"]
+    | Script of string [@name "script"]
+    [@@deriving yojson]
+
 type ref_node_data = {
     node_type: node_type;
     constraints: value_constraint list;
+    constraint_error_message: string;
+    completion_help: completion_help_type list;
     help: string;
     value_help: (string * string) list;
-    constraint_error_message: string;
     multi: bool;
     valueless: bool;
     owner: string option;
@@ -33,9 +40,10 @@ exception Validation_error of string
 let default_data = {
     node_type = Other;
     constraints = [];
+    constraint_error_message = "Invalid value";
+    completion_help = [];
     help = "No help available";
     value_help = [];
-    constraint_error_message = "Invalid value";
     multi = false;
     valueless = false;
     owner = None;
@@ -56,6 +64,14 @@ let node_type_of_string s =
     | "leafNode" -> Leaf
     | _ -> raise (Bad_interface_definition
                   (Printf.sprintf "node, tagNode, or leafNode expected, %s found" s))
+
+let completion_help_type_of_string v s =
+    match v with
+    | "list" -> List s
+    | "path" -> Path s
+    | "script" -> Script s
+    | _ -> raise (Bad_interface_definition
+                  (Printf.sprintf "list, path, or script expected, %s found" s))
 
 (** Find a child node in xml-lite *)
 let find_xml_child name xml =
@@ -90,6 +106,18 @@ let load_value_help_from_xml d x =
     let vhs' = (fmt, descr) :: vhs in
     {d with value_help=vhs'}
 
+let load_completion_help_from_xml d c =
+    let res =
+    let aux l c =
+        match c with
+        | Xml.Element (_, _, [Xml.PCData s]) ->
+                l @ [completion_help_type_of_string (Xml.tag c) s]
+        | _ -> raise (Bad_interface_definition "Malformed completion help")
+    in Xml.fold aux [] c in
+    let l = d.completion_help in
+    let l' = l @ res in
+    {d with completion_help=l'}
+
 let load_constraint_from_xml d c =
     let aux d c =
         match c with
@@ -110,6 +138,8 @@ let data_from_xml d x =
         match x with
         | Xml.Element ("help", _, [Xml.PCData s]) -> {d with help=s}
         | Xml.Element ("valueHelp", _, _) -> load_value_help_from_xml d x
+        | Xml.Element ("completionHelp", _, _) ->
+            load_completion_help_from_xml d x
         | Xml.Element ("multi", _, _) -> {d with multi=true}
         | Xml.Element ("valueless", _, _) -> {d with valueless=true}
         | Xml.Element ("constraintErrorMessage", _, [Xml.PCData s]) ->
