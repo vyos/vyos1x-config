@@ -100,7 +100,7 @@ let data_from_xml d x =
 
 let rec insert_from_xml basepath reftree xml =
     match xml with
-    | Xml.Element (tag, _,  _) ->
+    | Xml.Element (_, _,  _) ->
         let props = find_xml_child "properties" xml in
         let data =
             (match props with
@@ -127,7 +127,7 @@ let rec insert_from_xml basepath reftree xml =
 let load_from_xml reftree file =
     let xml_to_reftree xml reftree =
         match xml with
-        | Xml.Element ("interfaceDefinition", attrs, children) ->
+        | Xml.Element ("interfaceDefinition", _, children) ->
             List.fold_left (insert_from_xml []) reftree children
         | _ -> raise (Bad_interface_definition "Should start with <interfaceDefinition>")
     in
