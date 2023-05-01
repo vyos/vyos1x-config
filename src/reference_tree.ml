@@ -57,6 +57,39 @@ let node_type_of_string s =
     | _ -> raise (Bad_interface_definition
                   (Printf.sprintf "node, tagNode, or leafNode expected, %s found" s))
 
+(** Find a child node in xml-lite *)
+let find_xml_child name xml =
+    let find_aux e =
+        match e with
+        | Xml.Element (name', _, _) when name' = name -> true
+        | _ -> false
+    in
+    match xml with
+    | Xml.Element (_, _, children) -> Vylist.find find_aux children
+    | Xml.PCData _ -> None
+
+(* handle possible empty elements *)
+let try_pcdata x =
+    match x with
+    | [] -> ""
+    | _ ->
+    try
+        Xml.pcdata (List.hd x)
+    with Xml.Not_pcdata _ -> ""
+
+let get_pcdata_child name xml =
+    let c = find_xml_child name xml in
+    match c with
+    | Some Xml.Element(_, _, x_data) -> try_pcdata x_data
+    | _ -> raise (Bad_interface_definition (Printf.sprintf "No child named %s" name))
+
+let load_value_help_from_xml d x =
+    let fmt = get_pcdata_child "format" x in
+    let descr = get_pcdata_child "description" x in
+    let vhs = d.value_help in
+    let vhs' = (fmt, descr) :: vhs in
+    {d with value_help=vhs'}
+
 let load_constraint_from_xml d c =
     let aux d c =
         match c with
@@ -72,27 +105,11 @@ let load_constraint_from_xml d c =
         | _ -> raise (Bad_interface_definition "Malformed constraint")
     in Xml.fold aux d c
 
-(** Find a child node in xml-lite *)
-let find_xml_child name xml =
-    let find_aux e =
-        match e with
-        | Xml.Element (name', _, _) when name' = name -> true
-        | _ -> false
-    in
-    match xml with
-    | Xml.Element (_, _, children) -> Vylist.find find_aux children
-    | Xml.PCData _ -> None
-
 let data_from_xml d x =
     let aux d x =
         match x with
         | Xml.Element ("help", _, [Xml.PCData s]) -> {d with help=s}
-        | Xml.Element ("valueHelp", _,
-                       [Xml.Element ("format", _, [Xml.PCData fmt]);
-                        Xml.Element ("description", _, [Xml.PCData descr])]) ->
-            let vhs = d.value_help in
-            let vhs' = (fmt, descr) :: vhs in
-            {d with value_help=vhs'}
+        | Xml.Element ("valueHelp", _, _) -> load_value_help_from_xml d x
         | Xml.Element ("multi", _, _) -> {d with multi=true}
         | Xml.Element ("valueless", _, _) -> {d with valueless=true}
         | Xml.Element ("constraintErrorMessage", _, [Xml.PCData s]) ->
