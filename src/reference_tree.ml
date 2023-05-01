@@ -1,4 +1,8 @@
-type node_type = Leaf | Tag | Other
+type node_type =
+    | Leaf  [@name "leaf"]
+    | Tag   [@name "tag"]
+    | Other [@name "other"]
+    [@@deriving yojson]
 
 type value_constraint =
     | Regex of string [@name "regex"]
@@ -18,9 +22,9 @@ type ref_node_data = {
     keep_order: bool;
     hidden: bool;
     secret: bool;
-}
+} [@@deriving yojson]
 
-type t = ref_node_data Vytree.t
+type t = ref_node_data Vytree.t [@@deriving yojson]
 
 exception Bad_interface_definition of string
 
@@ -191,3 +195,31 @@ let get_completion_data reftree path =
         let data = Vytree.data_of_node node in
         (data.node_type, data.multi, data.help)
     in List.map aux (Vytree.children_of_node @@ Vytree.get reftree path)
+
+module JSONRenderer =
+struct
+    let render_data data =
+        ref_node_data_to_yojson data |> Yojson.Safe.to_string
+
+    let rec render_node node =
+        let name = Vytree.name_of_node node in
+        let children = Vytree.children_of_node node in
+        let data = Vytree.data_of_node node in
+        let data_str = render_data data in
+        let children_strs = List.map render_node children in
+        let children_str = String.concat "," children_strs in
+        if children_str <> "" then
+            Printf.sprintf "\"%s\": {\"node_data\": %s, %s}" name data_str children_str
+        else
+            Printf.sprintf "\"%s\": {\"node_data\": %s}" name data_str
+
+    let render_json node =
+        let data = Vytree.data_of_node node in
+        let data_str = render_data data in
+        let children = Vytree.children_of_node node in
+        let child_configs = List.map render_node children in
+        let child_config = String.concat "," child_configs in
+        Printf.sprintf "{\"node_data\": %s, %s}" data_str child_config
+end (* JSONRenderer *)
+
+let render_json = JSONRenderer.render_json
