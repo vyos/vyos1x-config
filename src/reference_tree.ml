@@ -66,6 +66,17 @@ let load_constraint_from_xml d c =
         | _ -> raise (Bad_interface_definition "Malformed constraint")
     in Xml.fold aux d c
 
+(** Find a child node in xml-lite *)
+let find_xml_child name xml =
+    let find_aux e =
+        match e with
+        | Xml.Element (name', _, _) when name' = name -> true
+        | _ -> false
+    in
+    match xml with
+    | Xml.Element (_, _, children) -> Vylist.find find_aux children
+    | Xml.PCData _ -> None
+
 let data_from_xml d x =
     let aux d x =
         match x with
@@ -90,7 +101,7 @@ let data_from_xml d x =
 let rec insert_from_xml basepath reftree xml =
     match xml with
     | Xml.Element (tag, _,  _) ->
-        let props = Util.find_xml_child "properties" xml in
+        let props = find_xml_child "properties" xml in
         let data =
             (match props with
             | None -> default_data
@@ -107,7 +118,7 @@ let rec insert_from_xml basepath reftree xml =
         (match node_type with
         | Leaf -> new_tree
         | _ ->
-            let children = Util.find_xml_child "children" xml in
+            let children = find_xml_child "children" xml in
             (match children with
              | None -> raise (Bad_interface_definition (Printf.sprintf "Node %s has no children" name))
              | Some c ->  List.fold_left (insert_from_xml path) new_tree (Xml.children c)))

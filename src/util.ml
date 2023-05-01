@@ -34,3 +34,7 @@ let default default_value opt =
 
 let lexical_numeric_compare s t =
     lex_numeric_compare s t
+
+(** Convert a relative path to an absolute path based on the current working directory *)
+let absolute_path relative_path =
+    FilePath.make_absolute (Sys.getcwd ()) relative_path
