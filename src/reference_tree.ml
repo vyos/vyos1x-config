@@ -14,6 +14,7 @@ type ref_node_data = {
     multi: bool;
     valueless: bool;
     owner: string option;
+    priority: string option;
     keep_order: bool;
     hidden: bool;
     secret: bool;
@@ -34,6 +35,7 @@ let default_data = {
     multi = false;
     valueless = false;
     owner = None;
+    priority = None;
     keep_order = false;
     hidden = false;
     secret = false;
@@ -92,6 +94,8 @@ let data_from_xml d x =
         | Xml.Element ("constraintErrorMessage", _, [Xml.PCData s]) ->
             {d with constraint_error_message=s}
         | Xml.Element ("constraint", _, _) -> load_constraint_from_xml d x
+        | Xml.Element ("priority", _, [Xml.PCData i]) ->
+            {d with priority=Some i}
         | Xml.Element ("hidden", _, _) -> {d with hidden=true}
         | Xml.Element ("secret", _, _) -> {d with secret=true}
         | Xml.Element ("keepChildOrder", _, _) -> {d with keep_order=true}

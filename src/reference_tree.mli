@@ -14,6 +14,7 @@ type ref_node_data = {
     multi: bool;
     valueless: bool;
     owner: string option;
+    priority: string option;
     keep_order: bool;
     hidden: bool;
     secret: bool;
