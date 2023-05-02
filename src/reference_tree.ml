@@ -26,6 +26,7 @@ type ref_node_data = {
     valueless: bool;
     owner: string option;
     priority: string option;
+    default_value: string option;
     keep_order: bool;
     hidden: bool;
     secret: bool;
@@ -48,6 +49,7 @@ let default_data = {
     valueless = false;
     owner = None;
     priority = None;
+    default_value = None;
     keep_order = false;
     hidden = false;
     secret = false;
@@ -166,7 +168,13 @@ let rec insert_from_xml basepath reftree xml =
         let node_owner = try let o = Xml.attrib xml "owner" in Some o
                          with _ -> None
         in
-        let data = {data with node_type=node_type; owner=node_owner} in
+        let default_value_elem = find_xml_child "defaultValue" xml in
+        let default_value =
+            (match default_value_elem with
+            | Some (Xml.Element (_, _, [Xml.PCData s])) -> Some s
+            | _ -> None)
+        in
+        let data = {data with node_type=node_type; owner=node_owner; default_value=default_value} in
         let name = Xml.attrib xml "name" in
         let path = basepath @ [name] in
         let new_tree = Vytree.insert_maybe reftree path data in
