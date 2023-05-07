@@ -161,6 +161,7 @@ let data_from_xml d x =
 
 let rec insert_from_xml basepath reftree xml =
     match xml with
+    | Xml.Element ("syntaxVersion", _, _) -> reftree
     | Xml.Element (_, _,  _) ->
         let props = find_xml_child "properties" xml in
         let data =
