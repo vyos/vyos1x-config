@@ -26,7 +26,6 @@ type ref_node_data = {
     owner: string option;
     priority: string option;
     default_value: string option;
-    keep_order: bool;
     hidden: bool;
     secret: bool;
 } [@@deriving to_yojson]
@@ -54,8 +53,6 @@ val is_tag : t -> string list -> bool
 val is_leaf : t -> string list -> bool
 
 val is_valueless : t -> string list -> bool
-
-val get_keep_order : t -> string list -> bool
 
 val get_owner : t -> string list -> string option
 

@@ -31,7 +31,6 @@ type ref_node_data = {
     owner: string option;
     priority: string option;
     default_value: string option;
-    keep_order: bool;
     hidden: bool;
     secret: bool;
 } [@@deriving to_yojson]
@@ -54,7 +53,6 @@ let default_data = {
     owner = None;
     priority = None;
     default_value = None;
-    keep_order = false;
     hidden = false;
     secret = false;
 }
@@ -155,7 +153,6 @@ let data_from_xml d x =
             {d with priority=Some i}
         | Xml.Element ("hidden", _, _) -> {d with hidden=true}
         | Xml.Element ("secret", _, _) -> {d with secret=true}
-        | Xml.Element ("keepChildOrder", _, _) -> {d with keep_order=true}
         | _ -> raise (Bad_interface_definition "Malformed property tag")
     in Xml.fold aux d x
 
@@ -233,10 +230,6 @@ let is_leaf reftree path =
 let is_valueless reftree path =
     let data = Vytree.get_data reftree path in
     data.valueless
-
-let get_keep_order reftree path =
-    let data = Vytree.get_data reftree path in
-    data.keep_order
 
 let get_owner reftree path =
     let data = Vytree.get_data reftree path in
