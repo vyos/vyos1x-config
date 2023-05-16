@@ -88,6 +88,10 @@ let rec insert ?(position=Default) ?(children=[]) node path data =
             let s = Printf.sprintf "Non-existent intermediary node: \'%s\'" name in
             raise (Insert_error s)
 
+let insert_maybe ?(position=Default) node path data =
+    try insert ~position:position node path data
+    with Duplicate_child -> node
+
 let sorted_children_of_node cmp node =
     let names = list_children node in
     let names = List.sort cmp names in

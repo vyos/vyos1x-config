@@ -6,7 +6,7 @@
 (library
  (name vyos1x)
  (public_name vyos1x-config)
- (libraries yojson menhirLib)
+ (libraries yojson menhirLib fileutils pcre xml-light)
  (preprocess (pps ppx_deriving_yojson))
  (foreign_stubs
   (language c)
