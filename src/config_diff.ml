@@ -7,6 +7,7 @@ type diff_trees = {
     right: Config_tree.t;
     add: Config_tree.t ref;
     sub: Config_tree.t ref;
+    del: Config_tree.t ref;
     inter: Config_tree.t ref;
 }
 
@@ -17,6 +18,7 @@ exception Nonexistent_child
 let make_diff_trees l r = { left = l; right = r;
                            add = ref (Config_tree.make "");
                            sub = ref (Config_tree.make "");
+                           del = ref (Config_tree.make "");
                            inter = ref (Config_tree.make "");
 }
 
@@ -147,13 +149,15 @@ let is_empty l = (l = [])
 let decorate_trees (trees : diff_trees) ?(recurse=true) (path : string list) (m : change) =
     match m with
     | Added -> trees.add := clone trees.right !(trees.add) path
-    | Subtracted -> trees.sub := clone trees.left !(trees.sub) path
+    | Subtracted -> trees.sub := clone trees.left !(trees.sub) path;
+                    trees.del := clone ~recurse:false ~set_values:(Some []) trees.left !(trees.del) path
     | Unchanged -> trees.inter := clone ~recurse:recurse trees.left !(trees.inter) path
     | Updated v ->
             (* if in this case, node at path is guaranteed to exist *)
             let ov = Config_tree.get_values trees.left path in
             match ov, v with
             | [_], [_] -> trees.sub := clone trees.left !(trees.sub) path;
+                          trees.del := clone trees.left !(trees.del) path;
                           trees.add := clone trees.right !(trees.add) path
             | _, _ -> let ov_set = ValueS.of_list ov in
                       let v_set = ValueS.of_list v in
@@ -162,6 +166,12 @@ let decorate_trees (trees : diff_trees) ?(recurse=true) (path : string list) (m 
                       let inter_vals = ValueS.elements (ValueS.inter ov_set v_set) in
                       if not (is_empty sub_vals) then
                           trees.sub := clone ~set_values:(Some sub_vals) trees.left !(trees.sub) path;
+                      if not (is_empty sub_vals) then
+                          if (is_empty add_vals) && (is_empty inter_vals) then
+                              (* delete whole node, not just values *)
+                              trees.del := clone ~set_values:(Some []) trees.left !(trees.del) path
+                          else
+                              trees.del := clone ~set_values:(Some sub_vals) trees.left !(trees.del) path;
                       if not (is_empty add_vals) then
                           trees.add := clone ~set_values:(Some add_vals) trees.right !(trees.add) path;
                       if not (is_empty inter_vals) then
@@ -236,8 +246,9 @@ let diff_tree path left right =
     let trees = compare path left right in
     let add_node = make Config_tree.default_data "add" (children_of !(trees.add)) in
     let sub_node = make Config_tree.default_data "sub" (children_of !(trees.sub)) in
+    let del_node = make Config_tree.default_data "del" (children_of !(trees.del)) in
     let int_node = make Config_tree.default_data "inter" (children_of !(trees.inter)) in
-    let ret = make Config_tree.default_data "" [add_node; sub_node; int_node] in
+    let ret = make Config_tree.default_data "" [add_node; sub_node; del_node; int_node] in
     ret
 
 (* wrapper to return trimmed tree for 'delete' commands *)

@@ -7,6 +7,7 @@ type diff_trees = {
     right: Config_tree.t;
     add: Config_tree.t ref;
     sub: Config_tree.t ref;
+    del: Config_tree.t ref;
     inter: Config_tree.t ref;
 }
 
