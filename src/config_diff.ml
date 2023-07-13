@@ -177,52 +177,6 @@ let decorate_trees (trees : diff_trees) ?(recurse=true) (path : string list) (m 
                       if not (is_empty inter_vals) then
                           trees.inter := clone ~set_values:(Some inter_vals) trees.left !(trees.inter) path
 
-(* define the 'trim' diff_func:
-
-   One can use the diff algorithm with this function to produce 'delete'
-   commands from the sub(-tract) tree. The subtract tree contains full paths
-   not present in the right hand side of the original comparison; the delete
-   tree is the subtract tree with paths ending at the first subtracted node.
-
-   Initial application of diff algorithm with function 'diff_trees':
-       left, right -> added, subtracted, intersection
-   Second application of diff algorithm with function 'trim_trees':
-       subtracted, right -> _, delete, _
-
-   One needs to keep the distinction of sub and delete trees: the delete
-   tree is used to produce correct 'delete' commands; the sub tree contains
-   complete information of the difference, used, for example, in recursively
-   detecting changes at a node between the effective/session configs.
-
-   The two trees could be produced in one pass of the diff function, but is
-   an overloaded use and would gain little in optimization: the trim-ing
-   walk will be on a smaller tree, only involve diff_func calls on the
-   subtracted nodes, and will end at the first node not present in the
-   comparison.
- *)
-let trim_trees (trees : diff_trees) ?(recurse=false) (path : string list) (m : change) =
-    match m with
-    | Added -> ()
-    | Subtracted -> trees.sub := clone ~recurse:recurse ~set_values:(Some []) trees.left !(trees.sub) path
-    | Unchanged -> ()
-    | Updated v ->
-            (* if in this case, node at path is guaranteed to exist *)
-            let ov = Config_tree.get_values trees.left path in
-            match ov, v with
-            | [_], [_] -> trees.sub := clone trees.left !(trees.sub) path;
-            | _, _ -> let ov_set = ValueS.of_list ov in
-                      let v_set = ValueS.of_list v in
-                      let sub_vals = ValueS.elements (ValueS.diff ov_set v_set) in
-                      let add_vals = ValueS.elements (ValueS.diff v_set ov_set) in
-                      (* in practice, the above sets will be disjoint *)
-                      let inter_vals = ValueS.elements (ValueS.inter ov_set v_set) in
-                      if not (is_empty sub_vals) then
-                          if (is_empty add_vals) && (is_empty inter_vals) then
-                              (* delete whole node, not just values *)
-                              trees.sub := clone ~set_values:(Some []) trees.left !(trees.sub) path
-                          else
-                              trees.sub := clone ~set_values:(Some sub_vals) trees.left !(trees.sub) path
-
 (* get sub trees for path-relative comparison *)
 let tree_at_path path node =
     try
@@ -250,12 +204,6 @@ let diff_tree path left right =
     let int_node = make Config_tree.default_data "inter" (children_of !(trees.inter)) in
     let ret = make Config_tree.default_data "" [add_node; sub_node; del_node; int_node] in
     ret
-
-(* wrapper to return trimmed tree for 'delete' commands *)
-let trim_tree left right =
-    let trees = make_diff_trees left right in
-    diff [] (trim_trees trees) [(Option.some left, Option.some right)];
-    !(trees.sub)
 
 (* the following builds a diff_func to return a unified diff string of
    configs or config commands
