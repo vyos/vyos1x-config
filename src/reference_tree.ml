@@ -194,14 +194,17 @@ let load_from_xml reftree file =
         match xml with
         | Xml.Element ("interfaceDefinition", _, children) ->
             List.fold_left (insert_from_xml []) reftree children
-        | _ -> raise (Bad_interface_definition "Should start with <interfaceDefinition>")
+        | _ -> raise (Bad_interface_definition "File should begin with <interfaceDefinition>")
     in
     try
         let xml = Xml.parse_file file in
         xml_to_reftree xml reftree
     with
-    | Xml.File_not_found msg -> raise (Bad_interface_definition msg)
-    | Xml.Error e -> raise (Bad_interface_definition (Xml.error e))
+    | Xml_light_errors.File_not_found msg -> raise (Bad_interface_definition msg)
+    | Xml_light_errors.Xml_error err ->
+        let (msg, pos) = err in
+        let s = Printf.sprintf ": line %d in file %s" pos.eline file in
+        raise (Bad_interface_definition ((Xml.error_msg msg)^s))
 
 let is_multi reftree path =
     let data = Vytree.get_data reftree path in
