@@ -4,7 +4,10 @@ exception Write_error of string
 
 let load_interface_definitions dir =
     let open Reference_tree in
-    let relative_paths = FileUtil.ls dir in
+    let dir_paths = FileUtil.ls dir in
+    let relative_paths =
+      List.filter (fun x -> Filename.extension x = ".xml") dir_paths
+    in
     let absolute_paths =
         try Ok (List.map Util.absolute_path relative_paths)
         with Sys_error no_dir_msg -> Error no_dir_msg
