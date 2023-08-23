@@ -161,7 +161,7 @@ struct
 
   let render_values ?(ord_val=false) indent_str name values =
     match values with
-    | [] -> Printf.sprintf "%s%s { }\n" indent_str name
+    | [] -> Printf.sprintf "%s%s\n" indent_str name
     | [v] -> Printf.sprintf "%s%s \"%s\"\n" indent_str name (Util.escape_string v)
     | _  -> 
       let values =
@@ -205,18 +205,10 @@ struct
     let name = Vytree.name_of_node node in
     let data = Vytree.data_of_node node in
     let comment = render_comment indent_str data.comment in
-    let values = render_values ~ord_val:ord_val indent_str name data.values in
     let children = Vytree.children_of_node node in
-    match children with
-    (* This produces too much whitespace due to indent_str from values,
-       but the issue is cosmetic *)
-    | [] -> Printf.sprintf "%s%s%s %s" comment indent_str parent values
-    | _ ->
-        (* Exploiting the fact that immediate children of tag nodes are
-           never themselves tag nodes *)
-        let inner = List.map (render_node ~ord_val:ord_val indent (level + 1)) children in
-        let inner = String.concat "" inner in
-        Printf.sprintf "%s%s%s %s {\n%s%s}\n" comment indent_str parent name inner indent_str
+    let inner = List.map (render_node ~ord_val:ord_val indent (level + 1)) children in
+    let inner = String.concat "" inner in
+    Printf.sprintf "%s%s%s %s {\n%s%s}\n" comment indent_str parent name inner indent_str
 
   let render_config ?(ord_val=false) node =
     let children = Vytree.children_of_node node in
