@@ -179,7 +179,12 @@ let rec insert_from_xml basepath reftree xml =
         let data = {data with node_type=node_type; owner=node_owner; default_value=default_value} in
         let name = Xml.attrib xml "name" in
         let path = basepath @ [name] in
-        let new_tree = Vytree.insert_maybe reftree path data in
+        let new_tree =
+            if data <> default_data then
+                Vytree.insert_or_update reftree path data
+            else
+                Vytree.insert_maybe reftree path data
+        in
         (match node_type with
         | Leaf -> new_tree
         | _ ->

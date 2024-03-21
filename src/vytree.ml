@@ -167,6 +167,10 @@ let update node path data =
         replace node' child
     in do_with_child (update_data data) node path
 
+let insert_or_update ?(position=Default) node path data =
+    try insert ~position:position node path data
+    with Duplicate_child -> update node path data
+
 let rec get node path =
     match path with
     | [] -> raise Empty_path
