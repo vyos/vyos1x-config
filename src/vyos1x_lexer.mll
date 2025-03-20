@@ -69,8 +69,6 @@ rule token vy_inside_node = parse
     { (false, LEFT_BRACE) }
 | '}'
     { (false, RIGHT_BRACE) }
-| "//" [^ '\n']*
-    { token vy_inside_node lexbuf }
 | [^ ' ' '\t' '\n' '\r' '{' '}' '"' ''' ]+ as s
     { (true, IDENTIFIER s) }
 | eof
