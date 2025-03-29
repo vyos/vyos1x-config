@@ -19,6 +19,6 @@ depends: [
   "ocamlfind" {build}
   "menhir" {build}
   "dune" {build & >= "1.4.0"}
-  "ppx_deriving_yojson"
+  "ppx_deriving_yojson" {build & <= "3.9.1"}
   "yojson"
 ]
