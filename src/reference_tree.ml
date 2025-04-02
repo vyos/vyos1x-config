@@ -509,6 +509,35 @@ let refpath reftree path =
     | _, [] -> acc
     in aux [] path
 
+let flag path =
+    let len = List.length path in
+    let aux p i =
+        Util.drop_last_n p (len - i - 1)
+    in
+    List.mapi (fun k _ -> aux path k) path
+
+let set_tag_data rtree ctree path =
+    let ext = Vytree.exists ctree path in
+    match ext with
+    | false -> ctree
+    | true ->
+        let set_tag rt ct p =
+            let refp = refpath rt p in
+            if is_tag rt refp && not (Config_tree.is_tag_value ct p)
+            then Config_tree.set_tag ct p true
+            else ct
+        in
+        List.fold_left (set_tag rtree) ctree (flag path)
+
+let set_leaf_data rtree ctree path =
+    let ext = Vytree.exists ctree path in
+    match ext with
+    | false -> ctree
+    | true ->
+        let refp = refpath rtree path in
+        if is_leaf rtree refp then Config_tree.set_leaf ctree path true
+        else ctree
+
 let get_ceil_data f reftree path =
     let data_of_path d p =
         let data = Vytree.get_data reftree p in

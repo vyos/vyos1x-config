@@ -83,4 +83,8 @@ val refpath : t -> string list -> string list
 
 val get_ceil_data : (ref_node_data -> string option) -> t -> string list -> string option
 
+val set_tag_data : t -> Config_tree.t -> string list -> Config_tree.t
+
+val set_leaf_data : t -> Config_tree.t -> string list -> Config_tree.t
+
 val render_json : t -> string
