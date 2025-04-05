@@ -31,3 +31,14 @@ let load_config file =
                     in Error out
             end
 
+let save_config ct file =
+    try
+        let s = Config_tree.render_config ct in
+        let chan = open_out file in
+        let () = output_string chan s in
+        let () = close_out chan in
+        let () = Unix.chmod file 0o664 in
+        Ok ()
+    with
+        Sys_error msg -> Error msg
+
