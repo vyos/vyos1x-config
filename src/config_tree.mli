@@ -47,6 +47,8 @@ val is_leaf : t -> string list -> bool
 
 val get_subtree : ?with_node:bool -> t -> string list -> t
 
+val value_paths_of_tree : t -> string list list
+
 val render_commands : ?op:command -> t -> string list -> string
 
 val render_config : ?ord_val:bool -> t -> string
