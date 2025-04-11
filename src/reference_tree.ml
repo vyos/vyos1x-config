@@ -433,7 +433,7 @@ let split_path node path =
                 match child with
                 | Some c -> aux c ps (p' :: p :: acc)
                 | None -> (List.rev acc, None))
-            | [_] -> (List.rev acc, None)
+            | [p] -> (List.rev (p :: acc), None)
             | _ -> (List.rev acc, None)
             end
         | Other ->
