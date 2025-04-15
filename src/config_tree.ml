@@ -135,6 +135,28 @@ let get_subtree ?(with_node=false) node path =
             Vytree.make_full default_data "" (Vytree.children_of_node n)
     with Vytree.Nonexistent_path -> make ""
 
+let value_paths_of_tree node =
+    let func ct (p, a) _t =
+        match p with
+        | [] -> (p, a)
+        | _ ->
+            let q = List.rev p in
+            if not (Vytree.is_terminal_path ct q) then
+                (p, a)
+            else
+                let vals = get_values ct q in
+                match vals with
+                | [] -> (p, q::a)
+                | _ as vs ->
+                    let a' =
+                        let f acc v =
+                            let q' = q @ [v] in
+                            q'::acc
+                        in List.fold_left f a vs
+                    in (p, a')
+    in List.rev (snd (Vytree.fold_tree_with_path (func node) ([], []) node))
+
+
 module Renderer =
 struct
     (* Rendering configs as set commands *)
