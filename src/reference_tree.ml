@@ -285,7 +285,7 @@ let has_illegal_characters name =
         All whitespace, curly braces, square brackets, and quotes
         are disallowed due to their special significance to the curly config
         format parser *)
-    try Some (Pcre.get_substring (Pcre.exec ~pat:"[\\s\\{\\}\\[\\]\"\'#]" name) 0)
+    try Some (Pcre2.get_substring (Pcre2.exec ~pat:"[\\s\\{\\}\\[\\]\"\'#]" name) 0)
     with Not_found -> None
 
 let format_out l =

@@ -1,7 +1,7 @@
 (* strip commponent version string *)
 let strip_version s =
-    let rex = Pcre.regexp ~flags:[`MULTILINE;`DOTALL] "(^//.*)" in
-    let res = Pcre.split ~max:0 ~rex s in
+    let rex = Pcre2.regexp ~flags:[`MULTILINE;`DOTALL] "(^//.*)" in
+    let res = Pcre2.split ~max:0 ~rex s in
     match res with
     | h :: _ -> Ok h
     | [] -> Error "Failure stripping version string from config"
