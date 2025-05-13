@@ -107,8 +107,8 @@ let json_of_list ss =
 let list_of_path p =
     let seg = String.trim p |> String.split_on_char '\'' in
     match seg with
-    | [h] -> Pcre.split ~pat:"\\s+" h
-    | h :: h' :: _ -> (Pcre.split ~pat:"\\s+" h) @ [h']
+    | [h] -> Pcre2.split ~pat:"\\s+" h
+    | h :: h' :: _ -> (Pcre2.split ~pat:"\\s+" h) @ [h']
     | _ -> []
 
 
