@@ -45,6 +45,7 @@ val clone : ?recurse:bool -> ?set_values:string list option -> Config_tree.t -> 
 val diff_tree : string list -> Config_tree.t -> Config_tree.t -> Config_tree.t
 val show_diff : ?cmds:bool -> string list -> Config_tree.t -> Config_tree.t -> string
 val tree_union : Config_tree.t -> Config_tree.t -> Config_tree.t
+val tree_merge : ?destructive:bool -> Config_tree.t -> Config_tree.t -> Config_tree.t
 val mask_tree : Config_tree.t -> Config_tree.t -> Config_tree.t
 val make_diff_cstore : Config_tree.t -> Config_tree.t -> int -> Diff_cstore.t result
 val get_tagged_delete_tree : Config_tree.t -> Config_tree.t
