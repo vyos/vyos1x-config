@@ -21,17 +21,10 @@ module Make : FI = functor (M: T) -> struct
         let yt = M.to_yojson x in
         let ys = Yojson.Safe.to_string yt in
         let fd = Unix.openfile file_name [Unix.O_CREAT;Unix.O_WRONLY] 0o664 in
-        let () =
-            try
-                Unix.lockf fd Unix.F_TLOCK 0
-            with _ ->
-                Unix.close fd; raise (Write_error "write lock unavailable")
-        in
         let oc = Unix.out_channel_of_descr fd in
         let () = Unix.ftruncate fd 0 in
         let () = Printf.fprintf oc "%s" ys in
         let () = Unix.fsync fd in
-        let () = Unix.lockf fd Unix.F_ULOCK 0 in
         close_out_noerr oc
 
     let read_internal file_name =
@@ -42,12 +35,6 @@ module Make : FI = functor (M: T) -> struct
                 let out =
                     Printf.sprintf "%s %s: %s" (Unix.error_message e) f p
                 in raise (Read_error out)
-        in
-        let () =
-            try
-                Unix.lockf fd Unix.F_TEST 0
-            with _ ->
-                Unix.close fd; raise (Read_error "read lock unavailable")
         in
         let ic = Unix.in_channel_of_descr fd in
         let ys = really_input_string ic (in_channel_length ic) in
