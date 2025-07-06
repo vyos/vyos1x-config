@@ -25,6 +25,7 @@ module Make : FI = functor (M: T) -> struct
         let () = Unix.ftruncate fd 0 in
         let () = Printf.fprintf oc "%s" ys in
         let () = Unix.fsync fd in
+        let () = Unix.chmod file_name 0o664 in
         close_out_noerr oc
 
     let read_internal file_name =
