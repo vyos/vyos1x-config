@@ -456,3 +456,13 @@ let tree_union s t =
         Vytree.make_full data (name_of v) (children_of v)
     in
     Tree_alg.ConfigAlg.tree_union s t f
+
+let tree_merge ?(destructive=false) s t =
+    let f u v =
+        let data =
+            match destructive with
+            | false -> data_of u
+            | true  -> data_of v
+        in Vytree.make_full data (name_of v) (children_of v)
+    in
+    Tree_alg.ConfigAlg.tree_union s t f
