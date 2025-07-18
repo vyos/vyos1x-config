@@ -1,3 +1,23 @@
+
+let rx =
+    let p =
+        {|("[^"]*[\][^"]*"\n|'[^']*[\][^']*'\n)|}
+    in
+    Pcre2.regexp p
+
+let escape_backslash s =
+    let func s =
+        Pcre2.qreplace ~pat:{|\\|} ~templ:{|\\|} s
+    in
+    Pcre2.substitute ~rex:rx ~subst:func s
+
+let unescape_backslash s =
+    let defunc s =
+        Pcre2.qreplace ~pat:{|\\\\|} ~templ:{|\|} s
+    in
+    Pcre2.substitute ~rex:rx ~subst:defunc s
+
+
 (* strip commponent version string *)
 let strip_version s =
     let rex = Pcre2.regexp ~flags:[`MULTILINE;`DOTALL] "(^//.*)" in
@@ -13,7 +33,7 @@ let load_config file =
         let () = close_in chan in
         let prep = strip_version s in
         let s = match prep with
-            | Ok s -> s
+            | Ok t -> escape_backslash t
             | Error msg -> raise (Sys_error msg)
         in
         let config = Parser.from_string s in
@@ -33,7 +53,8 @@ let load_config file =
 
 let save_config ct file =
     try
-        let s = Config_tree.render_config ct in
+        let t = Config_tree.render_config ct in
+        let s = unescape_backslash t in
         let chan = open_out file in
         let () = output_string chan s in
         let () = close_out chan in
