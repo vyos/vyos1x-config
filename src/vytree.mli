@@ -27,7 +27,7 @@ val insert_maybe : ?position:position -> 'a t -> string list -> 'a -> 'a t
 
 val insert_or_update : ?position:position -> 'a t -> string list -> 'a -> 'a t
 
-val insert_multi_level : 'a -> 'a t -> string list -> string list -> 'a -> 'a t
+val insert_multi_level : ?position:position -> 'a -> 'a t -> string list -> string list -> 'a -> 'a t
 
 val merge_children : ('a -> 'a -> 'a) -> (string -> string -> int) -> 'a t -> 'a t
 
