@@ -142,13 +142,13 @@ let merge_children merge_data cmp node =
 
 (* When inserting at a path that, entirely or partially,
    does not exist yet, create missing nodes on the way with default data *)
-let rec insert_multi_level default_data node path_done path_remaining data =
+let rec insert_multi_level ?(position=Default) default_data node path_done path_remaining data =
     match path_remaining with
     | [] | [_] -> insert node (path_done @ path_remaining) data
     | name :: names ->
         let path_done = path_done @ [name] in
-        let node = insert node path_done default_data in
-        insert_multi_level default_data node path_done names data
+        let node = insert ~position:position node path_done default_data in
+        insert_multi_level ~position:position default_data node path_done names data
 
 let delete node path =
     do_with_child delete_immediate node path
