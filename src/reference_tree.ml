@@ -290,10 +290,11 @@ let has_illegal_characters name =
 
 let format_out l =
     let fl = List.filter (fun s -> (String.length s) > 0) l in
-    String.concat "\n\n" fl
+    Printf.sprintf "%s\n\n" (String.concat "\n" fl)
 
-(** Takes a list of string that represents a configuration path that may have
-    node value at the end, validates it, and splits it into path and value parts.
+
+(** Take a list of string that represents a configuration path that may have
+    node value at the end and validates it.
 
    A list of strings is a valid path that can be created in the config tree unless:
      1. It's a tag node without a child
@@ -305,7 +306,9 @@ let format_out l =
         doesn't exist in the reference tree
  *)
 let validate_path validators_dir node path =
-    let show_path p = Printf.sprintf "[%s]" @@ Util.string_of_list (List.rev p) in
+    let show_path p =
+        Printf.sprintf "[%s]" @@ Util.string_of_list (List.rev p)
+    in
     let rec aux node path acc =
         let data = Vytree.data_of_node node in
         match data.node_type with
@@ -327,8 +330,8 @@ let validate_path validators_dir node path =
                      match res with
                      | None -> ()
                      | Some out ->
-                        let ret = format_out [out; data.constraint_error_message]
-                        in raise (Validation_error ret)
+                         let ret = format_out [show_path (p::acc); out; data.constraint_error_message]
+                         in raise (Validation_error ret)
                  else
                      let msg = Printf.sprintf "Node %s cannot have a value" (show_path acc)
                      in raise (Validation_error msg)
@@ -552,6 +555,146 @@ let get_ceil_data f reftree path =
                 aux (data_of_path d (refpath reftree acc')) acc' tl
         | _, [] -> d
     in aux None [] path
+
+(** Add alternative validation function to be called on an existing tree.
+    This allows folding over tree for full validation.
+    Numbered comments list constraints as described above validate_path.
+ *)
+let validate_tree_at_path validators_dir rt ct path value =
+    if Util.is_empty path then ()
+    else
+    let show_path p =
+        Printf.sprintf "[%s]" @@ Util.string_of_list p
+    in
+    let refp = refpath rt path in
+    (* 6. It's a node that is neither leaf nor tag value with a name that
+          doesn't exist in the reference tree
+     *)
+    if not (Vytree.exists rt refp) then
+        let msg = Printf.sprintf "Path %s is not in reference tree\n" (show_path path)
+        in raise (Validation_error msg)
+    else
+    let node =
+        try
+            Vytree.get ct path
+        with Vytree.Nonexistent_path ->
+            let msg = Printf.sprintf "Path %s is not in config file\n" (show_path path)
+            in raise (Validation_error msg)
+    in
+    let children = Vytree.children_of_node node in
+    let childless = Util.is_empty children in
+    let ct_data = Vytree.data_of_node node in
+    let values = ct_data.Config_tree.values in
+    let values_empty = Util.is_empty values in
+    if Config_tree.is_tag ct path then
+        (* 1. It's a tag node without a child *)
+        if childless then
+            let msg =
+                Printf.sprintf "Configuration path %s requires a tag value\n" (show_path path)
+            in raise (Validation_error msg)
+        else ()
+    else
+    if (Config_tree.is_tag_value ct path) then
+        let rt_data = Vytree.get_data rt (refpath rt (Util.drop_last path)) in
+        let tag_value =
+            match (Util.get_last path) with
+            | Some v -> v
+            | None -> raise (Validation_error "Internal error\n")
+        in
+        (* 2. It's a tag node with an invalid tag value *)
+        let res =
+            try
+                Value_checker.validate_any validators_dir rt_data.constraints tag_value
+            with Value_checker.Bad_validator msg -> raise (Validation_error msg)
+        in
+        match res with
+        | None -> ()
+        | Some out ->
+            let ret = format_out [show_path path; out; rt_data.constraint_error_message]
+            in raise (Validation_error ret)
+    else
+    if Config_tree.is_leaf ct path then
+        let rt_data = Vytree.get_data rt (refpath rt path) in
+        (* 4. It's a valueless leaf node with a value *)
+        if is_valueless rt refp then
+            if not values_empty then
+                let msg =
+                    Printf.sprintf "Path at valueless leaf %s has values\n" (show_path path)
+                in raise (Validation_error msg)
+            else ()
+        else
+        (* 3. It's a non-valueless leaf node without a value *)
+        if values_empty then
+            let msg =
+                Printf.sprintf "Configuration path %s requires a value\n" (show_path path)
+            in raise (Validation_error msg)
+        else
+        (* It's a non-multi node with multiple values *)
+        if not (is_multi rt refp) then
+        match values with
+        | [_] -> ()
+        | _ ->
+            let msg =
+                Printf.sprintf "Multiple values for non-multi node %s\n" (show_path path)
+            in raise (Validation_error msg)
+        else
+        match value with
+        | None -> ()
+        | Some v ->
+            (* 5. It's a non-valueless leaf node with an invalid value *)
+            let res =
+                try
+                    Value_checker.validate_any validators_dir rt_data.constraints v
+                with Value_checker.Bad_validator msg -> raise (Validation_error msg)
+            in
+            match res with
+            | None -> ()
+            | Some out ->
+                let ret = format_out [show_path (path @ [v]); out; rt_data.constraint_error_message]
+                in raise (Validation_error ret)
+    else ()
+
+let validate_tree_filter dir rt ct =
+    (* validate and filter invalid paths *)
+    let try_validate (p, (ctree, out)) value =
+        let q = List.rev p in
+        try
+            validate_tree_at_path dir rt ctree q value;
+            (p, (ctree, out))
+        with Validation_error x ->
+            let ct' =
+                Config_tree.delete ctree q value |>
+                (fun c -> Config_tree.prune_delete c q)
+            in
+            (p, (ct', out ^ x))
+    in
+    let validate_path_filter (p, (ctree, out)) _node =
+        if Util.is_empty p then
+            (p, (ctree, out))
+        else
+        let q = List.rev p in
+        (* the path may have been removed in previous iteration *)
+        if not (Vytree.exists ctree q) then
+            (p, (ctree, out))
+        else
+        let data = Vytree.get_data ct q in
+        let values  = data.Config_tree.values in
+        match values with
+        | [] ->
+            try_validate (p, (ctree, out)) None
+        | _ as l ->
+            let l' = List.map Option.some l in
+            List.fold_left try_validate (p, (ctree, out)) l'
+    in
+    let tree, out =
+        snd (Vytree.fold_tree_with_path validate_path_filter ([], (ct, "")) ct)
+    in
+    tree, out
+
+let validate_tree dir rt ct =
+    let _, out = validate_tree_filter dir rt ct in
+    out
+
 
 module JSONRenderer =
 struct

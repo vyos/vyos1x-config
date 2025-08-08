@@ -55,6 +55,10 @@ val find_xml_child : string -> Xml_light_types.xml -> Xml_light_types.xml option
 
 val validate_path : string -> t -> string list -> unit
 
+val validate_tree_filter : string -> t -> Config_tree.t -> Config_tree.t * string
+
+val validate_tree : string -> t -> Config_tree.t -> string
+
 val split_path : t -> string list -> string list * string option
 
 val is_multi : t -> string list -> bool
