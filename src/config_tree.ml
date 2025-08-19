@@ -156,6 +156,15 @@ let value_paths_of_tree node =
                     in (p, a')
     in List.rev (snd (Vytree.fold_tree_with_path (func node) ([], []) node))
 
+let prune_delete node path =
+    if is_tag_value node path then
+        let tag_path = Util.drop_last path in
+        let terminal = Vytree.is_terminal_path node tag_path in
+        match terminal with
+        | true -> delete node tag_path None
+        | false -> node
+    else node
+
 
 module Renderer =
 struct

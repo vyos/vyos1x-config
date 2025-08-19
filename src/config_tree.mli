@@ -27,6 +27,8 @@ val set : t -> string list -> string option -> value_behaviour -> t
 
 val delete : t -> string list -> string option -> t
 
+val prune_delete : t -> string list -> t
+
 val get_values : t -> string list -> string list
 
 val get_value : t -> string list -> string
