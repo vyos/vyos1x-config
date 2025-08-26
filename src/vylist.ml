@@ -10,11 +10,15 @@ let rec remove p xs =
     | y :: ys -> if (p y) then ys
                  else y :: (remove p ys)
 
-let rec replace p x xs =
-    match xs with
-    | [] -> raise Not_found
-    | y :: ys -> if (p y) then x :: ys
-                 else y :: (replace p x ys)
+let rec replace ?(force=false) p x xs =
+    try
+        match xs with
+        | [] -> raise_notrace Not_found
+        | y :: ys -> if (p y) then x :: ys
+                     else y :: (replace p x ys)
+    with Not_found ->
+        if force then (x :: xs)
+        else raise Not_found
 
 let rec insert_before p x xs =
     match xs with
