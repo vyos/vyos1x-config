@@ -1,4 +1,4 @@
-type value_behaviour = AddValue | ReplaceValue
+type value_behaviour = AddValue | ReplaceValue [@@deriving yojson]
 type command = Set | Delete
 
 exception Duplicate_value
