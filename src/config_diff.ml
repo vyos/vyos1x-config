@@ -154,26 +154,40 @@ let rec diff (path : string list) (f : 'a diff_func) (res: 'a result) ((left_nod
 
 (* copy node paths between trees *)
 let rec clone_path ?(recurse=true) ?(set_values=None) old_root new_root path_done path_remaining =
+    (* raises:
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get:
+        [Vytree.Empty_path] not possible as clone_path called by clone with non-empty path
+        [Vytree.Nonexistent_path] allow raise
+       alert exn Vytree.insert:
+        [Vytree.Empty_path] not possible as clone_path called by clone with non-empty path
+        [Not_found] not possible for postion=Lexical
+        [Vytree.Duplicate_child] not possible as calls are on path complement
+        [Vytree.Insert_error] not possible as calls are on path_existing @ [name]
+     *)
     match path_remaining with
     | [] | [_] ->
         let path_total = path_done @ path_remaining in
-        let old_node = Vytree.get old_root path_total in
+        let old_node = (Vytree.get[@alert "-exn"]) old_root path_total in
         let data =
             match set_values with
             | Some v -> { (data_of old_node) with Config_tree.values = v }
             | None -> data_of old_node
         in
         if recurse then
-            Vytree.insert ~position:Lexical ~children:(children_of old_node) new_root path_total data
+            (Vytree.insert[@alert "-exn"]) ~position:Lexical ~children:(children_of old_node) new_root path_total data
         else
-            Vytree.insert ~position:Lexical new_root path_total data
+            (Vytree.insert[@alert "-exn"]) ~position:Lexical new_root path_total data
     | name :: names ->
         let path_done = path_done @ [name] in
-        let old_node = Vytree.get old_root path_done in
-        let new_root = Vytree.insert ~position:Lexical new_root path_done (data_of old_node) in
+        let old_node = (Vytree.get[@alert "-exn"]) old_root path_done in
+        let new_root = (Vytree.insert[@alert "-exn"]) ~position:Lexical new_root path_done (data_of old_node) in
         clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_done names
 
 let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
+    (* raises:
+        [Vytree.Nonexistent_path] from clone_path
+     *)
     match path with
     | [] -> if recurse then old_root else new_root
     | _ ->
@@ -183,6 +197,12 @@ let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
 
 (* define the diff_func *)
 let decorate_trees ?(recurse=true) (path : string list) (Diff_tree res) (m : change) =
+    (* raises no exception:
+        clone will always be called on extant path of left or right
+       alert exn Vytree.get_values:
+        [Vytree.Empty_path] not possible as pattern Updated implies non-empty path
+        [Vytree.Nonexistent_path] not possible as pattern Updated implies path exists
+     *)
     match m with
     | Added -> Diff_tree {res with add = clone res.right res.add path; }
     | Subtracted ->
@@ -192,7 +212,7 @@ let decorate_trees ?(recurse=true) (path : string list) (Diff_tree res) (m : cha
         Diff_tree {res with inter = clone ~recurse:recurse res.left res.inter path; }
     | Updated v ->
             (* if in this case, node at path is guaranteed to exist *)
-            let ov = Config_tree.get_values res.left path in
+            let ov = (Config_tree.get_values[@alert "-exn"]) res.left path in
             match ov, v with
             | [_], [_] -> Diff_tree {res with sub = clone res.left res.sub path;
                            del = clone res.left res.del path;
@@ -236,13 +256,24 @@ let decorate_trees ?(recurse=true) (path : string list) (Diff_tree res) (m : cha
 
 (* get sub trees for path-relative comparison *)
 let tree_at_path path node =
+    (* raises:
+        [Vytree.Empty_path]
+        [Empty_comparison]
+       alert exn Vytree.get:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] catch and raise Empty_comparison
+     *)
     try
-        let node = Vytree.get node path in
+        let node = (Vytree.get[@alert "-exn"]) node path in
         make Config_tree.default_data "" [node]
     with Vytree.Nonexistent_path -> raise Empty_comparison
 
 (* call recursive diff on config_trees with decorate_trees as the diff_func *)
 let compare path left right =
+    (* raises:
+        [Empty_comparison] from tree_at_path
+        [Incommensurable]
+     *)
     if (name_of left) <> (name_of right) then
         raise Incommensurable
     else
@@ -254,6 +285,10 @@ let compare path left right =
 
 (* wrapper to return diff trees *)
 let diff_tree path left right =
+    (* raises:
+        [Incommensurable],
+        [Empty_comparison] from compare
+     *)
     let trees = compare path left right in
     let add_node = make Config_tree.default_data "add" (children_of (trees.add)) in
     let sub_node = make Config_tree.default_data "sub" (children_of (trees.sub)) in
@@ -266,9 +301,23 @@ let diff_tree path left right =
     we need a hybrid tree between the 'del' tree and the 'sub' tree, namely:
     in case the del tree has a terminal tag node (== all tag values have
     been removed) add tag node values for proper removal in commit execution
-    *)
+ *)
 
 let get_tagged_delete_tree dt =
+    (* alert exn Config_tree.is_tag:
+        [Vytree.Empty_path] not possible in pattern non-empty path
+        [Vytree.Nonexistent_path] not possible in fold_tree_with_path
+       alert exn Vytree.is_terminal_path:
+        [Vytree.Empty_path] not possible in pattern non-empty path
+       alert exn Vytree.children_of_path:
+        [Vytree.Empty_path] not possible in pattern non-empty path
+        [Vytree.Nonexistent_path] not possible in super-tree of fold_tree_with_path arg
+       alert exn Vytree.insert:
+        [Vytree.Empty_path]: not possible since called on pattern path non-empty
+        [Not_found]: not possible for postion=Lexical
+        [Vytree.Duplicate_child]: not possible by condition is_terminal_path
+        [Vytree.Insert_error]: not possible since constructed iteratively from existing path
+     *)
     let del_tree = Config_tree.get_subtree dt ["del"] in
     let sub_tree = Config_tree.get_subtree dt ["sub"] in
     let f (p, a) _t =
@@ -276,10 +325,10 @@ let get_tagged_delete_tree dt =
         match q with
         | [] -> (p, a)
         | _ ->
-        if Config_tree.is_tag a q && Vytree.is_terminal_path a q then
-            let children = Vytree.children_of_path sub_tree q in
+        if (Config_tree.is_tag[@alert "-exn"]) a q && (Vytree.is_terminal_path[@alert "-exn"]) a q then
+            let children = (Vytree.children_of_path[@alert "-exn"]) sub_tree q in
             let insert_child path node name =
-                Vytree.insert ~position:Lexical node (path @ [name]) Config_tree.default_data
+                (Vytree.insert[@alert "-exn"]) ~position:Lexical node (path @ [name]) Config_tree.default_data
             in
             let a' = List.fold_left (insert_child q) a children in
             (p, a')
@@ -307,14 +356,20 @@ let marked_render mark node =
     String.concat "\n" m
 
 let added_lines ?(cmds=false) node path =
+    (* alert exn Config_tree.render_commands:
+        [Vytree.Nonexistent_path] not possible on root path
+     *)
     if not cmds then marked_render "+ " (tree_at_path path node)
     else
-        (Config_tree.render_commands ~op:Set node []) ^ "\n"
+        ((Config_tree.render_commands[@alert "-exn"]) ~op:Set node []) ^ "\n"
 
 let removed_lines ?(cmds=false) node path =
+    (* alert exn Config_tree.render_commands:
+        [Vytree.Nonexistent_path] not possible on root path
+     *)
     if not cmds then marked_render "- " (tree_at_path path node)
     else
-        (Config_tree.render_commands ~op:Delete node []) ^ "\n"
+        ((Config_tree.render_commands[@alert "-exn"]) ~op:Delete node []) ^ "\n"
 
 let order_commands (strl: string) =
     let l = String.split_on_char '\n' strl in
@@ -323,6 +378,12 @@ let order_commands (strl: string) =
     (String.concat "\n" del) ^ "\n" ^ (String.concat "\n" set) ^ "\n"
 
 let unified_diff ?(cmds=false) ?recurse:_ (path : string list) (Diff_string res) (m : change) =
+    (* raises no exception:
+        clone will always be called on extant path of left or right
+       alert exn Vytree.get_values:
+        [Vytree.Empty_path] not possible as pattern Updated implies non-empty path
+        [Vytree.Nonexistent_path] not possible as pattern Updated implies path exists
+     *)
     let ppath_l = list_but_last path
     in
     let ppath_s =
@@ -348,7 +409,7 @@ let unified_diff ?(cmds=false) ?recurse:_ (path : string list) (Diff_string res)
             Diff_string { res with ppath = ppath_l; udiff = str_diff; }
     | Unchanged -> Diff_string (res)
     | Updated v ->
-            let ov = Config_tree.get_values res.left path in
+            let ov = (Config_tree.get_values[@alert "-exn"]) res.left path in
             match ov, v with
             | [_], [_] ->
                     let str_diff =
@@ -405,6 +466,10 @@ let compare_at_path_maybe_empty left right path =
     in (left, right)
 
 let show_diff ?(cmds=false) path left right =
+    (* raises:
+        [Incommensurable],
+        [Empty_comparison] from compare_at_path_maybe_empty
+     *)
     if (name_of left) <> (name_of right) then
         raise Incommensurable
     else
@@ -425,19 +490,34 @@ let show_diff ?(cmds=false) path left right =
 
 (* mask function; mask applied on right *)
 let mask_func ?recurse:_ (path : string list) (Diff_tree res) (m : change) =
+    (* alert exn Vytree.delete:
+        [Vytree.Empty_path] not possible since Unchanged pattern is only empty path
+        [Vytree.Nonexistent_path] not possible as called on existing config paths (res.left)
+       alert exn Vytree.is_terminal_path:
+        [Vytree.Empty_path] not possible since Unchanged pattern is only empty path
+     *)
     match m with
     | Added -> Diff_tree (res)
     | Subtracted ->
             (match path with
-            | [_] -> Diff_tree {res with left = Vytree.delete res.left path}
-            |  _  -> if not (Vytree.is_terminal_path res.right (list_but_last path)) then
-                         Diff_tree {res with left = Vytree.delete res.left path}
-                     else Diff_tree (res))
+            | [_] ->
+                Diff_tree {res with left = (Vytree.delete[@alert "-exn"]) res.left path}
+            |  _  ->
+                if not ((Vytree.is_terminal_path[@alert "-exn"]) res.right (list_but_last path)) then
+                    Diff_tree {res with left = (Vytree.delete[@alert "-exn"]) res.left path}
+                else Diff_tree (res))
     | Unchanged -> Diff_tree (res)
     | Updated _ -> Diff_tree (res)
 
 (* call recursive diff with mask_func; mask applied on right *)
 let mask_tree left right =
+    (* raises:
+        [Empty_comparison] from diff
+        [Incommensurable]
+     *)
+    if (name_of left) <> (name_of right) then
+        raise Incommensurable
+    else
     let trees = make_diff_trees left right in
     let d = diff [] mask_func trees (Option.some left, Option.some right)
     in
@@ -450,14 +530,28 @@ let union_of_values (n : Config_tree.t) (m : Config_tree.t) =
     ValueS.elements (ValueS.union set_n set_m)
 
 let tree_union s t =
+    (* raises:
+        [Tree_alg.Incompatible_union]
+        [Tree_alg.Nonexistent_child] should not be reachable
+       alert exn Tree_alg.ConfigAlg.tree_union:
+        [Tree_alg.Incompatible_union] allow raise
+        [Tree_alg.Nonexistent_child] allow raise; should not be reachable
+     *)
     let f u v =
         let values = union_of_values u v in
         let data = {(data_of v) with Config_tree.values = values} in
         Vytree.make_full data (name_of v) (children_of v)
     in
-    Tree_alg.ConfigAlg.tree_union s t f
+    (Tree_alg.ConfigAlg.tree_union[@alert "-exn"]) s t f
 
 let tree_merge ?(destructive=false) s t =
+    (* raises:
+        [Tree_alg.Incompatible_union]
+        [Tree_alg.Nonexistent_child] should not be reachable
+       alert exn Tree_alg.ConfigAlg.tree_union:
+        [Tree_alg.Incompatible_union] allow raise
+        [Tree_alg.Nonexistent_child] allow raise; should not be reachable
+     *)
     let f u v =
         let data =
             match destructive with
@@ -465,4 +559,4 @@ let tree_merge ?(destructive=false) s t =
             | true  -> data_of v
         in Vytree.make_full data (name_of v) (children_of v)
     in
-    Tree_alg.ConfigAlg.tree_union s t f
+    (Tree_alg.ConfigAlg.tree_union[@alert "-exn"]) s t f

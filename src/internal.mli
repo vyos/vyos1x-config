@@ -11,10 +11,17 @@ module type T =
 
 module type FI = functor (M : T) ->
     sig
-      val write_internal : M.t -> string -> unit
-      val write_internal_atomic : M.t -> string -> unit
-      val read_internal : string -> M.t
-      val replace_internal : string -> string -> unit
+        val write_internal : M.t -> string -> unit
+        [@@alert exn "Internal.Write_error"]
+
+        val write_internal_atomic : M.t -> string -> unit
+        [@@alert exn "Internal.Write_error"]
+
+        val read_internal : string -> M.t
+        [@@alert exn "Internal.Read_error"]
+
+        val replace_internal : string -> string -> unit
+        [@@alert exn "Internal.Write_error"]
     end
 
 module Make : FI

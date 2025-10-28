@@ -20,13 +20,20 @@ let data_of_node node = node.data
 let children_of_node node = node.children
 
 let insert_immediate ?(position=Default) node name data children =
+    (* alert exn Vylist.insert_before; Vylist.insert_after:
+        [Not_found] allow raise
+     *)
     let new_node = make_full data name children in
     let children' =
         match position with
         | Default -> new_node :: node.children
         | End -> node.children @ [new_node]
-        | Before s -> Vylist.insert_before (fun x -> x.name = s) new_node node.children
-        | After s -> Vylist.insert_after (fun x -> x.name = s) new_node node.children
+        | Before s ->
+            (* allow raise of Not_found *)
+            (Vylist.insert_before[@alert "-exn"]) (fun x -> x.name = s) new_node node.children
+        | After s ->
+            (* allow raise of Not_found *)
+            (Vylist.insert_after[@alert "-exn"]) (fun x -> x.name = s) new_node node.children
         | Lexical ->
             Vylist.insert_compare (fun x y -> Util.lexical_numeric_compare x.name y.name) new_node node.children
     in { node with children = children' }
@@ -39,20 +46,35 @@ let adopt node child =
     { node with children = child :: node.children }
 
 let replace node child =
+    (* alert exn Vylist.replace:
+        [Not_found] allow raise
+     *)
     let children = node.children in
     let name = child.name in
-    let children' = Vylist.replace (fun x -> x.name = name) child children in
+    let children' =
+        (* allow raise of Not_found *)
+        (Vylist.replace[@alert "-exn"]) (fun x -> x.name = name) child children
+    in
     { node with children = children' }
 
 let replace_full node child name =
+    (* alert exn Vylist.replace:
+        [Not_found] allow raise
+     *)
     let children = node.children in
-    let children' = Vylist.replace (fun x -> x.name = name) child children in
+    let children' =
+        (* allow raise of Not_found *)
+        (Vylist.replace[@alert "-exn"]) (fun x -> x.name = name) child children
+    in
     { node with children = children' }
 
 let find node name =
     Vylist.find (fun x -> x.name = name) node.children
 
 let find_or_fail node name =
+    (* raises
+        [Nonexistent_path]
+     *)
     let child = find node name in
     match child with
     | None -> raise Nonexistent_path
@@ -62,6 +84,10 @@ let list_children node =
     List.map (fun x -> x.name) node.children
 
 let rec do_with_child fn node path =
+    (* raises
+        [Nonexistent_path] from find_or_fail
+        [Empty_path]
+     *)
     match path with
     | [] -> raise Empty_path
     | [name] -> fn node name
@@ -71,6 +97,12 @@ let rec do_with_child fn node path =
         replace node new_node
 
 let rec insert ?(position=Default) ?(children=[]) node path data =
+    (* raises
+        [Not_found] from insert_immediate
+        [Empty_path]
+        [Duplicate_child]
+        [Insert_error]
+     *)
     match path with
     | [] -> raise Empty_path
     | [name] ->
@@ -89,10 +121,17 @@ let rec insert ?(position=Default) ?(children=[]) node path data =
             raise (Insert_error s)
 
 let insert_maybe ?(position=Default) node path data =
+    (* raises
+        [Empty_path],
+        [Not_found],
+        [Insert_error] from insert
+     *)
     try insert ~position:position node path data
     with Duplicate_child -> node
 
 let sorted_children_of_node cmp node =
+    (* raises no exn, as find_or_fail cannot fail
+     *)
     let names = list_children node in
     let names = List.sort cmp names in
     List.map (find_or_fail node) names
@@ -154,6 +193,13 @@ let delete node path =
     do_with_child delete_immediate node path
 
 let rename node path newname =
+    (* raises
+        [Not_found] from replace_full
+        [Nonexistent_child] from find_or_fail; do_with_child
+        [Empty_path]
+     *)
+    if Util.is_empty path then raise Empty_path
+    else
     let rename_immediate newname' node' name' =
         let child = find_or_fail node' name' in
         let child = { child with name=newname' } in
@@ -172,14 +218,26 @@ let insert_or_update ?(position=Default) node path data =
     with Duplicate_child -> update node path data
 
 let rec get node path =
+    (* raises
+        [Empty_path],
+        [Nonexistent_path] from find_or_fail
+     *)
     match path with
     | [] -> raise Empty_path
     | [name] -> find_or_fail node name
     | name :: names -> get (find_or_fail node name) names
 
-let get_data node path = data_of_node @@ get node path
+let get_data node path =
+    (* raises
+        [Empty_path],
+        [Nonexistent_path] from get
+     *)
+    data_of_node @@ get node path
 
 let exists node path =
+    (* raises
+        [Empty_path] from get
+     *)
     try ignore (get node path); true
     with Nonexistent_path -> false
 
@@ -195,20 +253,38 @@ let get_existent_path node path =
     in List.rev (aux node path [])
 
 let children_of_path node path =
+    (* raises
+        [Empty_path],
+        [Nonexistent_path] from get
+     *)
     let node' = get node path in
     list_children node'
 
 let copy node old_path new_path =
+    (* raises
+        [Empty_path] from exists
+        [Nonexistent_path] from get
+        [Insert_error] from insert
+     *)
     if exists node new_path then raise Duplicate_child else
     let child = get node old_path in
     insert ~position:End ~children:child.children node new_path child.data
 
 let move node path position =
+    (* raises
+        [Empty_path],
+        [Nonexistent_path] from get; delete
+        [Not_found],
+        [Insert_error] from insert
+     *)
     let child = get node path in
     let node = delete node path in
     insert ~position:position ~children:child.children node path child.data
 
 let is_terminal_path node path =
+    (* raises
+        [Empty_path] from get
+     *)
     try
         let n = get node path in
         match (children_of_node n) with

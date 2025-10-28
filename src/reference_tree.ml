@@ -224,6 +224,13 @@ let data_from_xml d x =
     in Xml.fold aux d x
 
 let rec insert_from_xml basepath reftree xml =
+    (* raises:
+        [Bad_interface_definition]
+       alert exn Vytree.insert_or_update; Vytree.insert_maybe:
+        [Vytree.Empty_path] not possible as all nodes have nodeNameAttr by schema
+        [Not_found] not possible for position=Default
+        [Vytree.Insert_error] not possible for recursive fold over children
+     *)
     match xml with
     | Xml.Element ("syntaxVersion", _, _) -> reftree
     | Xml.Element (_, _,  _) ->
@@ -248,9 +255,9 @@ let rec insert_from_xml basepath reftree xml =
         let path = basepath @ [name] in
         let new_tree =
             if data <> default_data then
-                Vytree.insert_or_update reftree path data
+                (Vytree.insert_or_update[@alert "-exn"]) reftree path data
             else
-                Vytree.insert_maybe reftree path data
+                (Vytree.insert_maybe[@alert "-exn"]) reftree path data
         in
         (match node_type with
         | Leaf -> new_tree
@@ -262,6 +269,9 @@ let rec insert_from_xml basepath reftree xml =
     | _ -> raise (Bad_interface_definition "PCData not allowed here")
 
 let load_from_xml reftree file =
+    (* raises:
+        [Bad_interface_definition] from insert_from_xml and explicit
+     *)
     let xml_to_reftree xml reftree =
         match xml with
         | Xml.Element ("interfaceDefinition", _, children) ->
@@ -306,6 +316,9 @@ let format_out l =
         doesn't exist in the reference tree
  *)
 let validate_path validators_dir node path =
+    (* raises:
+        [Validation_error]
+     *)
     let show_path p =
         Printf.sprintf "[%s]" @@ Util.string_of_list (List.rev p)
     in
@@ -452,57 +465,139 @@ let split_path node path =
     in aux node path []
 
 let is_multi reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.multi
 
 let is_hidden reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.hidden
 
 let is_secret reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.secret
 
 let is_tag reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     match data.node_type with
     | Tag -> true
     | _ -> false
 
 let is_leaf reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     match data.node_type with
     | Leaf -> true
     | _ -> false
 
 let is_valueless reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.valueless
 
 let get_owner reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.owner
 
 let get_priority reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.priority
 
 let get_help_string reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.help
 
 let get_value_help reftree path =
-    let data = Vytree.get_data reftree path in
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.value_help
 
 let get_completion_data reftree path =
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
     let aux node =
         let data = Vytree.data_of_node node in
         (data.node_type, data.multi, data.help)
-    in List.map aux (Vytree.children_of_node @@ Vytree.get reftree path)
+    in
+    List.map aux (Vytree.children_of_node @@ (Vytree.get[@alert "-exn"]) reftree path)
 
 (* Convert from config path to reference tree path *)
 let refpath reftree path =
+    (* raises:
+        [Vytree.Empty_path],
+        [Vytree.Nonexistent_path] from is_tag
+     *)
     let rec aux acc p =
     match acc, p with
     | [], h :: tl -> aux (acc @ [h]) tl
@@ -520,30 +615,55 @@ let flag path =
     List.mapi (fun k _ -> aux path k) path
 
 let set_tag_data rtree ctree path =
-    let ext = Vytree.exists ctree path in
+    (* raises:
+        [Vytree.Empty_path],
+        [Vytree.Nonexistent_path] from refpath; is_tag; and
+       alert exn Vytree.exists:
+        [Vytree.Empty_path] allow raise
+       alert exn Config_tree.is_tag_value; Config_tree.set_tag:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let ext = (Vytree.exists[@alert "-exn"]) ctree path in
     match ext with
     | false -> ctree
     | true ->
         let set_tag rt ct p =
             let refp = refpath rt p in
-            if is_tag rt refp && not (Config_tree.is_tag_value ct p)
-            then Config_tree.set_tag ct p true
+            if is_tag rt refp && not ((Config_tree.is_tag_value[@alert "-exn"]) ct p)
+            then (Config_tree.set_tag[@alert "-exn"]) ct p true
             else ct
         in
         List.fold_left (set_tag rtree) ctree (flag path)
 
 let set_leaf_data rtree ctree path =
-    let ext = Vytree.exists ctree path in
+    (* raises:
+        [Vytree.Empty_path],
+        [Vytree.Nonexistent_path] from refpath; is_leaf; and
+       alert exn Vytree.exists:
+        [Vytree.Empty_path] allow raise
+       alert exn Config_tree.set_leaf:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let ext = (Vytree.exists[@alert "-exn"]) ctree path in
     match ext with
     | false -> ctree
     | true ->
         let refp = refpath rtree path in
-        if is_leaf rtree refp then Config_tree.set_leaf ctree path true
+        if is_leaf rtree refp then (Config_tree.set_leaf[@alert "-exn"]) ctree path true
         else ctree
 
 let get_ceil_data f reftree path =
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
     let data_of_path d p =
-        let data = Vytree.get_data reftree p in
+        let data = (Vytree.get_data[@alert "-exn"]) reftree p in
         match (f data) with
         | Some d' -> Some d'
         | None -> d
@@ -561,6 +681,20 @@ let get_ceil_data f reftree path =
     Numbered comments list constraints as described above validate_path.
  *)
 let validate_tree_at_path validators_dir rt ct path value =
+    (* raises:
+        [Validation_error]
+       alert exn Vytree.exists:
+        [Vytree.Empty_path] ruled out in branch
+       alert exn Vytree.get:
+        [Vytree.Empty_path] ruled out in branch
+        [Vytree.Nonexistent_path] catch and raise Validation_error
+       alert exn Config_tree.is_tag;
+                 Config_tree.is_tag_value;
+                 Vytree.get_data;
+                 Config_tree.is_leaf:
+        [Vytree.Empty_path] ruled out
+        [Vytree.Nonexistent_path] ruled out
+     *)
     if Util.is_empty path then ()
     else
     let show_path p =
@@ -570,13 +704,13 @@ let validate_tree_at_path validators_dir rt ct path value =
     (* 6. It's a node that is neither leaf nor tag value with a name that
           doesn't exist in the reference tree
      *)
-    if not (Vytree.exists rt refp) then
+    if not ((Vytree.exists[@alert "-exn"]) rt refp) then
         let msg = Printf.sprintf "Path %s is not in reference tree\n" (show_path path)
         in raise (Validation_error msg)
     else
     let node =
         try
-            Vytree.get ct path
+            (Vytree.get[@alert "-exn"]) ct path
         with Vytree.Nonexistent_path ->
             let msg = Printf.sprintf "Path %s is not in config file\n" (show_path path)
             in raise (Validation_error msg)
@@ -586,7 +720,7 @@ let validate_tree_at_path validators_dir rt ct path value =
     let ct_data = Vytree.data_of_node node in
     let values = ct_data.Config_tree.values in
     let values_empty = Util.is_empty values in
-    if Config_tree.is_tag ct path then
+    if (Config_tree.is_tag[@alert "-exn"]) ct path then
         (* 1. It's a tag node without a child *)
         if childless then
             let msg =
@@ -594,8 +728,8 @@ let validate_tree_at_path validators_dir rt ct path value =
             in raise (Validation_error msg)
         else ()
     else
-    if (Config_tree.is_tag_value ct path) then
-        let rt_data = Vytree.get_data rt (refpath rt (Util.drop_last path)) in
+    if ((Config_tree.is_tag_value[@alert "-exn"]) ct path) then
+        let rt_data = (Vytree.get_data[@alert "-exn"]) rt (refpath rt (Util.drop_last path)) in
         let tag_value =
             match (Util.get_last path) with
             | Some v -> v
@@ -613,8 +747,8 @@ let validate_tree_at_path validators_dir rt ct path value =
             let ret = format_out [show_path path; out; rt_data.constraint_error_message]
             in raise (Validation_error ret)
     else
-    if Config_tree.is_leaf ct path then
-        let rt_data = Vytree.get_data rt (refpath rt path) in
+    if (Config_tree.is_leaf[@alert "-exn"]) ct path then
+        let rt_data = (Vytree.get_data[@alert "-exn"]) rt (refpath rt path) in
         (* 4. It's a valueless leaf node with a value *)
         if is_valueless rt refp then
             if not values_empty then
@@ -656,6 +790,17 @@ let validate_tree_at_path validators_dir rt ct path value =
 
 let validate_tree_filter dir rt ct =
     (* validate and filter invalid paths *)
+    (* catches:
+        [Validation_error] from validate_tree_at_path
+       alert exn Config_tree.delete; Config_tree.prune_delete:
+        [Vytree.Empty_path] not possible as validate_tree_at_path ignores
+        [Vytree.Nonexistent_path] not possible as extant in tree
+       alert exn Vytree.exists:
+        [Vytree.Empty_path] not possible as non-empty in branch
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] not possible as non-empty in branch
+        [Vytree.Nonexistent_path] not possible in fold_tree_with_path
+     *)
     let try_validate (p, (ctree, out)) value =
         let q = List.rev p in
         try
@@ -663,8 +808,8 @@ let validate_tree_filter dir rt ct =
             (p, (ctree, out))
         with Validation_error x ->
             let ct' =
-                Config_tree.delete ctree q value |>
-                (fun c -> Config_tree.prune_delete c q)
+                (Config_tree.delete[@alert "-exn"]) ctree q value |>
+                (fun c -> (Config_tree.prune_delete[@alert "-exn"]) c q)
             in
             (p, (ct', out ^ x))
     in
@@ -674,10 +819,10 @@ let validate_tree_filter dir rt ct =
         else
         let q = List.rev p in
         (* the path may have been removed in previous iteration *)
-        if not (Vytree.exists ctree q) then
+    if not ((Vytree.exists[@alert "-exn"]) ctree q) then
             (p, (ctree, out))
         else
-        let data = Vytree.get_data ct q in
+            let data = (Vytree.get_data[@alert "-exn"]) ct q in
         let values  = data.Config_tree.values in
         match values with
         | [] ->
@@ -692,6 +837,9 @@ let validate_tree_filter dir rt ct =
     tree, out
 
 let validate_tree dir rt ct =
+    (* raises:
+        [Validation_error] from validate_tree_at_path
+     *)
     let _, out = validate_tree_filter dir rt ct in
     out
 

@@ -8,6 +8,7 @@ type value_constraint =
 exception Bad_validator of string
 
 val validate_value : string -> Buffer.t -> value_constraint -> string -> bool
+[@@alert exn "Value_checker.Bad_validator"]
 
 val validate_any : string -> value_constraint list -> string -> string option
 

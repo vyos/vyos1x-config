@@ -30,12 +30,26 @@ module Alg (D: Data) (T: Tree with module D = D) = struct
 
     let find_child n c = Vytree.find n (Vytree.name_of_node c)
 
-    let insert_child n c = Vytree.insert ~position:Vytree.Lexical ~children:(Vytree.children_of_node c) n [(Vytree.name_of_node c)] (Vytree.data_of_node c)
+    let insert_child n c =
+        (* alert exn Vytree.insert:
+            [Vytree.Empty_path] not possible as called on name_of_node for existing child
+            [Not_found] not possible for postion=Lexical
+            [Vytree.Duplicate_child] not possible as find_child is None
+            [Vytree.Insert_error] not possible as no intermediary nodes
+         *)
+        (Vytree.insert[@alert "-exn"]) ~position:Vytree.Lexical ~children:(Vytree.children_of_node c) n [(Vytree.name_of_node c)] (Vytree.data_of_node c)
 
     let replace_child n c =
-        Vytree.replace n c
+        (* alert exn Vytree.replace:
+            [Not_found] not possible as child name already present
+         *)
+        (Vytree.replace[@alert "-exn"]) n c
 
     let rec tree_union s t f =
+        (* raises:
+            [Incompatible_union]
+            [Nonexistent_child]
+         *)
         if (Vytree.name_of_node s) <> (Vytree.name_of_node t) then
             raise Incompatible_union
         else
@@ -44,14 +58,16 @@ module Alg (D: Data) (T: Tree with module D = D) = struct
             let t_c = find_child t c in
             match s_c, t_c with
             | Some child, None ->
-                insert_child t child
+                    insert_child t child
             | None, Some _ -> t
             | Some u, Some v ->
                     if (Vytree.data_of_node u <> Vytree.data_of_node v) then
                         replace_child t (tree_union u (f u v) f)
                     else
                         replace_child t (tree_union u v f)
-            | None, None -> raise Nonexistent_child
+            | None, None ->
+                    (* Not possible in fold over union_of_children *)
+                    raise Nonexistent_child
         in
         List.fold_left (fun x c -> child_of_union s x c) t (union_of_children s t)
 end

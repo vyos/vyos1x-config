@@ -9,6 +9,9 @@ type value_constraint =
 exception Bad_validator of string
 
 let validate_value dir buf value_constraint value =
+    (* raises:
+        [Bad_validator]
+     *)
     match value_constraint with
     | Regex s ->
       (try
@@ -44,6 +47,8 @@ let validate_value dir buf value_constraint value =
 (* If no constraints given, consider it valid.
    Otherwise consider it valid if it satisfies at least one constraint *)
 let validate_any validators constraints value =
+    (* raises no error; catches [Bad_validator] from validate_value
+     *)
     let buf = Buffer.create 4096 in
     let validate_exists validators constraints value =
         match constraints with
@@ -65,6 +70,8 @@ let validate_any validators constraints value =
 (* If no constraints given, consider it valid.
    Otherwise consider it valid if it satisfies all constraints *)
 let validate_all validators constraints value =
+    (* raises no error; catches [Bad_validator] from validate_value
+     *)
     let buf = Buffer.create 4096 in
     let validate_forall validators constraints value =
         match constraints with
