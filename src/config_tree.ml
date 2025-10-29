@@ -85,6 +85,12 @@ let get_value node path =
     | [] -> raise Node_has_no_value
     | x :: _ -> x
 
+let value_exists node path value =
+    if not (Vytree.exists node path) then false
+    else let node' = Vytree.get node path in
+    let data = Vytree.data_of_node node' in
+    Vylist.in_list data.values value
+
 let delete node path value =
     match value with
     | Some v ->

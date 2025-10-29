@@ -33,6 +33,8 @@ val get_values : t -> string list -> string list
 
 val get_value : t -> string list -> string
 
+val value_exists : t -> string list -> string -> bool
+
 val set_comment : t -> string list -> string option -> t
 
 val get_comment : t -> string list -> string option
