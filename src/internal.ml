@@ -1,3 +1,8 @@
+(*
+ * A functor for 'internal' representation of Config_tree and Reference_tree.
+ * This is useful for avoiding re-parsing *_trees on cache and load.
+ *)
+
 exception Read_error of string
 exception Write_error of string
 
