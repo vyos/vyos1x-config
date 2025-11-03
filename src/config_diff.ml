@@ -14,7 +14,7 @@ module Diff_tree = struct
              }
 end
 
-module Diff_string = struct
+module Diff_compare = struct
     type t = { left: Config_tree.t;
                right: Config_tree.t;
                skel: Config_tree.t;
@@ -25,11 +25,11 @@ end
 
 type _ diff_result =
     | Diff_tree : Diff_tree.t -> Diff_tree.t diff_result
-    | Diff_string : Diff_string.t -> Diff_string.t diff_result
+    | Diff_compare : Diff_compare.t -> Diff_compare.t diff_result
 
 let eval_diff_result : type a. a diff_result -> a = function
     | Diff_tree x -> x
-    | Diff_string x -> x
+    | Diff_compare x -> x
 
 type 'a diff_func = ?recurse:bool -> string list -> 'a diff_result -> change -> 'a diff_result
 
@@ -40,7 +40,7 @@ let make_diff_trees l r = Diff_tree { left = l; right = r;
                                 inter = (Config_tree.make "");
 }
 
-let make_diff_string l r = Diff_string { left = l; right = r;
+let make_diff_compare l r = Diff_compare { left = l; right = r;
                                 skel = (Config_tree.make "");
                                 ppath = [];
                                 udiff = "";
@@ -87,7 +87,7 @@ let right_opt_pairs n m =
         (maybe_node, Some y))
 
 (* this is module option 'compare', but with Some _ preceding None, which is
-   useful for maintaing left-right -> top-down order for show_diff
+   useful for maintaing left-right -> top-down order for diff_compare
  *)
 let opt_cmp o0 o1 =
     match o0, o1 with
@@ -181,7 +181,7 @@ let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
             clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_existing path_remaining
 
 (* define the diff_func *)
-let decorate_trees ?(recurse=true) (path : string list) (Diff_tree res) (m : change) =
+let build_trees ?(recurse=true) (path : string list) (Diff_tree res) (m : change) =
     (* raises no exception:
         clone will always be called on extant path of left or right
        alert exn Vytree.get_values:
@@ -253,8 +253,8 @@ let tree_at_path path node =
         make Config_tree.default_data "" [node]
     with Vytree.Nonexistent_path -> raise Empty_comparison
 
-(* call recursive diff on config_trees with decorate_trees as the diff_func *)
-let compare path left right =
+(* call recursive diff on config_trees with build_trees as the diff_func *)
+let diff_trees path left right =
     (* raises:
         [Empty_comparison] from tree_at_path
         [Incommensurable]
@@ -265,16 +265,16 @@ let compare path left right =
         let (left, right) = if not (path = []) then
             (tree_at_path path left, tree_at_path path right) else (left, right) in
         let trees = make_diff_trees left right in
-        let d = diff [] decorate_trees trees (Option.some left, Option.some right)
+        let d = diff [] build_trees trees (Option.some left, Option.some right)
         in eval_diff_result d
 
-(* wrapper to return diff trees *)
+(* wrapper to return single tree with diff trees as subtrees *)
 let diff_tree path left right =
     (* raises:
         [Incommensurable],
         [Empty_comparison] from compare
      *)
-    let trees = compare path left right in
+    let trees = diff_trees path left right in
     let add_node = make Config_tree.default_data "add" (children_of (trees.add)) in
     let sub_node = make Config_tree.default_data "sub" (children_of (trees.sub)) in
     let del_node = make Config_tree.default_data "del" (children_of (trees.del)) in
@@ -324,7 +324,7 @@ let get_tagged_delete_tree dt =
 
 
 (* the following builds a diff_func to return a unified diff string of
-   configs or config commands
+   configs or config commands for use in the config-mode 'compare' command
  *)
 let list_but_last l =
     let len = List.length l in
@@ -362,7 +362,7 @@ let order_commands (strl: string) =
     let set = List.filter (fun s -> (s <> "") && (s.[0] = 's')) l in
     (String.concat "\n" del) ^ "\n" ^ (String.concat "\n" set) ^ "\n"
 
-let unified_diff ?(cmds=false) ?recurse:_ (path : string list) (Diff_string res) (m : change) =
+let unified_diff ?(cmds=false) ?recurse:_ (path : string list) (Diff_compare res) (m : change) =
     (* raises no exception:
         clone will always be called on extant path of left or right
        alert exn Vytree.get_values:
@@ -385,14 +385,14 @@ let unified_diff ?(cmds=false) ?recurse:_ (path : string list) (Diff_string res)
                 let add_tree = clone res.right res.skel path in
                 str_diff ^ (added_lines ~cmds:cmds add_tree path)
             in
-            Diff_string { res with ppath = ppath_l; udiff = str_diff; }
+            Diff_compare { res with ppath = ppath_l; udiff = str_diff; }
     | Subtracted ->
             let str_diff =
                 let sub_tree = clone res.left res.skel path in
                 str_diff ^ (removed_lines ~cmds:cmds sub_tree path)
             in
-            Diff_string { res with ppath = ppath_l; udiff = str_diff; }
-    | Unchanged -> Diff_string (res)
+            Diff_compare { res with ppath = ppath_l; udiff = str_diff; }
+    | Unchanged -> Diff_compare (res)
     | Updated v ->
             let ov = (Config_tree.get_values[@alert "-exn"]) res.left path in
             match ov, v with
@@ -405,7 +405,7 @@ let unified_diff ?(cmds=false) ?recurse:_ (path : string list) (Diff_string res)
                         let add_tree = clone res.right res.skel path in
                         str_diff ^ (added_lines ~cmds:cmds add_tree path)
                     in
-                    Diff_string { res with ppath = ppath_l; udiff = str_diff; }
+                    Diff_compare { res with ppath = ppath_l; udiff = str_diff; }
             | _, _ -> let ov_set = ValueS.of_list ov in
                       let v_set = ValueS.of_list v in
                       let sub_vals = ValueS.elements (ValueS.diff ov_set v_set) in
@@ -424,7 +424,7 @@ let unified_diff ?(cmds=false) ?recurse:_ (path : string list) (Diff_string res)
                               in str_diff ^ (added_lines ~cmds:cmds add_tree path)
                           else str_diff
                       in
-                      Diff_string { res with ppath = ppath_l; udiff = str_diff; }
+                      Diff_compare { res with ppath = ppath_l; udiff = str_diff; }
 
 let add_empty_path src_node dest_node path =
     clone ~recurse:false ~set_values:(Some []) src_node dest_node path
@@ -450,7 +450,7 @@ let compare_at_path_maybe_empty left right path =
                  raise Empty_comparison
     in (left, right)
 
-let show_diff ?(cmds=false) path left right =
+let diff_compare ?(cmds=false) path left right =
     (* raises:
         [Incommensurable],
         [Empty_comparison] from compare_at_path_maybe_empty
@@ -462,7 +462,7 @@ let show_diff ?(cmds=false) path left right =
             if (path <> []) then
                 compare_at_path_maybe_empty left right path
             else (left, right) in
-        let dstr = make_diff_string left right in
+        let dstr = make_diff_compare left right in
         let dstr =
             diff [] (unified_diff ~cmds:cmds) dstr (Option.some left, Option.some right)
         in

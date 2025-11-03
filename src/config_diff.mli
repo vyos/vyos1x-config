@@ -10,7 +10,7 @@ module Diff_tree : sig
              }
 end
 
-module Diff_string : sig
+module Diff_compare : sig
     type t = { left: Config_tree.t;
                right: Config_tree.t;
                skel: Config_tree.t;
@@ -21,7 +21,7 @@ end
 
 type _ diff_result =
     | Diff_tree : Diff_tree.t -> Diff_tree.t diff_result
-    | Diff_string : Diff_string.t -> Diff_string.t diff_result
+    | Diff_compare : Diff_compare.t -> Diff_compare.t diff_result
 
 val eval_diff_result : 'a diff_result -> 'a
 
@@ -39,7 +39,7 @@ val diff_tree : string list -> Config_tree.t -> Config_tree.t -> Config_tree.t
 [@@alert exn "Config_diff.Incommensurable"]
 [@@alert exn "Config_diff.Empty_comparison"]
 
-val show_diff : ?cmds:bool -> string list -> Config_tree.t -> Config_tree.t -> string
+val diff_compare : ?cmds:bool -> string list -> Config_tree.t -> Config_tree.t -> string
 [@@alert exn "Config_diff.Incommensurable"]
 [@@alert exn "Config_diff.Empty_comparison"]
 
