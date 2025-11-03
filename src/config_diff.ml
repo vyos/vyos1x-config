@@ -23,15 +23,15 @@ module Diff_string = struct
              }
 end
 
-type _ result =
-    | Diff_tree : Diff_tree.t -> Diff_tree.t result
-    | Diff_string : Diff_string.t -> Diff_string.t result
+type _ diff_result =
+    | Diff_tree : Diff_tree.t -> Diff_tree.t diff_result
+    | Diff_string : Diff_string.t -> Diff_string.t diff_result
 
-let eval_result : type a. a result -> a = function
+let eval_diff_result : type a. a diff_result -> a = function
     | Diff_tree x -> x
     | Diff_string x -> x
 
-type 'a diff_func = ?recurse:bool -> string list -> 'a result -> change -> 'a result
+type 'a diff_func = ?recurse:bool -> string list -> 'a diff_result -> change -> 'a diff_result
 
 let make_diff_trees l r = Diff_tree { left = l; right = r;
                                 add = (Config_tree.make "");
@@ -122,7 +122,7 @@ let update_path path left_opt right_opt =
    The idea of matching on pairs of (node opt) is from
    https://github.com/LukeBurgessYeo/tree-diff
  *)
-let rec diff (path : string list) (f : 'a diff_func) (res: 'a result) ((left_node_opt, right_node_opt) : Config_tree.t option * Config_tree.t option) =
+let rec diff (path : string list) (f : 'a diff_func) (res: 'a diff_result) ((left_node_opt, right_node_opt) : Config_tree.t option * Config_tree.t option) =
     let path = update_path path left_node_opt right_node_opt in
     match left_node_opt, right_node_opt with
     | None, None -> raise Empty_comparison
@@ -266,7 +266,7 @@ let compare path left right =
             (tree_at_path path left, tree_at_path path right) else (left, right) in
         let trees = make_diff_trees left right in
         let d = diff [] decorate_trees trees (Option.some left, Option.some right)
-        in eval_result d
+        in eval_diff_result d
 
 (* wrapper to return diff trees *)
 let diff_tree path left right =
@@ -466,7 +466,7 @@ let show_diff ?(cmds=false) path left right =
         let dstr =
             diff [] (unified_diff ~cmds:cmds) dstr (Option.some left, Option.some right)
         in
-        let dstr = eval_result dstr in
+        let dstr = eval_diff_result dstr in
         let strs =
             if cmds then order_commands dstr.udiff
             else dstr.udiff
@@ -506,7 +506,7 @@ let mask_tree left right =
     let trees = make_diff_trees left right in
     let d = diff [] mask_func trees (Option.some left, Option.some right)
     in
-    let res = eval_result d in
+    let res = eval_diff_result d in
     res.left
 
 let union_of_values (n : Config_tree.t) (m : Config_tree.t) =

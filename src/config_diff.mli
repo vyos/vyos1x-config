@@ -19,14 +19,14 @@ module Diff_string : sig
              }
 end
 
-type _ result =
-    | Diff_tree : Diff_tree.t -> Diff_tree.t result
-    | Diff_string : Diff_string.t -> Diff_string.t result
+type _ diff_result =
+    | Diff_tree : Diff_tree.t -> Diff_tree.t diff_result
+    | Diff_string : Diff_string.t -> Diff_string.t diff_result
 
-val eval_result : 'a result -> 'a
+val eval_diff_result : 'a diff_result -> 'a
 
-type 'a diff_func = ?recurse:bool -> string list -> 'a result -> change -> 'a result
-val diff : string list -> 'a diff_func -> 'a result -> Config_tree.t option * Config_tree.t option -> 'a result
+type 'a diff_func = ?recurse:bool -> string list -> 'a diff_result -> change -> 'a diff_result
+val diff : string list -> 'a diff_func -> 'a diff_result -> Config_tree.t option * Config_tree.t option -> 'a diff_result
 
 exception Incommensurable
 exception Empty_comparison
