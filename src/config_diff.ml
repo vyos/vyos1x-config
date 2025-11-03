@@ -23,23 +23,13 @@ module Diff_string = struct
              }
 end
 
-module Diff_cstore = struct
-    type t = { left: Config_tree.t;
-               right: Config_tree.t;
-               handle: int;
-               out: string;
-             }
-end
-
 type _ result =
     | Diff_tree : Diff_tree.t -> Diff_tree.t result
     | Diff_string : Diff_string.t -> Diff_string.t result
-    | Diff_cstore : Diff_cstore.t -> Diff_cstore.t result
 
 let eval_result : type a. a result -> a = function
     | Diff_tree x -> x
     | Diff_string x -> x
-    | Diff_cstore x -> x
 
 type 'a diff_func = ?recurse:bool -> string list -> 'a result -> change -> 'a result
 
@@ -55,11 +45,6 @@ let make_diff_string l r = Diff_string { left = l; right = r;
                                 ppath = [];
                                 udiff = "";
                            }
-
-let make_diff_cstore l r h = Diff_cstore { left = l; right = r;
-                                handle = h;
-                                out = "";
-}
 
 let name_of n = Vytree.name_of_node n
 let data_of n = Vytree.data_of_node n

@@ -19,18 +19,9 @@ module Diff_string : sig
              }
 end
 
-module Diff_cstore : sig
-    type t = { left: Config_tree.t;
-               right: Config_tree.t;
-               handle: int;
-               out: string;
-             }
-end
-
 type _ result =
     | Diff_tree : Diff_tree.t -> Diff_tree.t result
     | Diff_string : Diff_string.t -> Diff_string.t result
-    | Diff_cstore : Diff_cstore.t -> Diff_cstore.t result
 
 val eval_result : 'a result -> 'a
 
@@ -63,7 +54,5 @@ val tree_merge : ?destructive:bool -> Config_tree.t -> Config_tree.t -> Config_t
 val mask_tree : Config_tree.t -> Config_tree.t -> Config_tree.t
 [@@alert exn "Config_diff.Incommensurable"]
 [@@alert exn "Config_diff.Empty_comparison"]
-
-val make_diff_cstore : Config_tree.t -> Config_tree.t -> int -> Diff_cstore.t result
 
 val get_tagged_delete_tree : Config_tree.t -> Config_tree.t
