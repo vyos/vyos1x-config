@@ -17,16 +17,27 @@ module type T =
 module type FI = functor (M: T) ->
     sig
         val write_internal : M.t -> string -> unit
+        [@@alert exn "Internal.Write_error"]
         val write_internal_atomic : M.t -> string -> unit
+        [@@alert exn "Internal.Write_error"]
         val read_internal : string -> M.t
+        [@@alert exn "Internal.Read_error"]
         val replace_internal : string -> string -> unit
+        [@@alert exn "Internal.Write_error"]
     end
 
 module Make : FI = functor (M: T) -> struct
     let write_internal x file_name =
         let yt = M.to_yojson x in
         let ys = Yojson.Safe.to_string yt in
-        let fd = Unix.openfile file_name [Unix.O_CREAT;Unix.O_WRONLY] 0o664 in
+        let fd =
+            try
+                Unix.openfile file_name [Unix.O_CREAT;Unix.O_WRONLY] 0o664
+            with Unix.Unix_error (e,f,p) ->
+                let out =
+                    Printf.sprintf "%s %s: %s" (Unix.error_message e) f p
+                in raise (Write_error out)
+        in
         let oc = Unix.out_channel_of_descr fd in
         let () = Unix.ftruncate fd 0 in
         let () = Printf.fprintf oc "%s" ys in

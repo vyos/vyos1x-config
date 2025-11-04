@@ -27,6 +27,9 @@ let strip_version s =
     | [] -> Error "Failure stripping version string from config"
 
 let load_config file =
+    (* alert exn Parser.from_string:
+        [Util.Syntax_error] caught
+     *)
     try
         let chan = open_in file in
         let s = really_input_string chan (in_channel_length chan) in
@@ -36,7 +39,7 @@ let load_config file =
             | Ok t -> escape_backslash t
             | Error msg -> raise (Sys_error msg)
         in
-        let config = Parser.from_string s in
+        let config = (Parser.from_string[@alert "-exn"]) s in
         Ok config
     with
         | Sys_error msg -> Error msg

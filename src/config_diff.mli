@@ -42,10 +42,28 @@ exception Empty_comparison
 exception Nonexistent_child
 
 val clone : ?recurse:bool -> ?set_values:string list option -> Config_tree.t -> Config_tree.t ->string list -> Config_tree.t
+[@@alert exn "Vytree.Nonexistent_path"]
+
 val diff_tree : string list -> Config_tree.t -> Config_tree.t -> Config_tree.t
+[@@alert exn "Config_diff.Incommensurable"]
+[@@alert exn "Config_diff.Empty_comparison"]
+
 val show_diff : ?cmds:bool -> string list -> Config_tree.t -> Config_tree.t -> string
+[@@alert exn "Config_diff.Incommensurable"]
+[@@alert exn "Config_diff.Empty_comparison"]
+
 val tree_union : Config_tree.t -> Config_tree.t -> Config_tree.t
+[@@alert exn "Tree_alg.Incompatible_union"]
+[@@alert exn "Tree_alg.Nonexistent_child"]
+
 val tree_merge : ?destructive:bool -> Config_tree.t -> Config_tree.t -> Config_tree.t
+[@@alert exn "Tree_alg.Incompatible_union"]
+[@@alert exn "Tree_alg.Nonexistent_child"]
+
 val mask_tree : Config_tree.t -> Config_tree.t -> Config_tree.t
+[@@alert exn "Config_diff.Incommensurable"]
+[@@alert exn "Config_diff.Empty_comparison"]
+
 val make_diff_cstore : Config_tree.t -> Config_tree.t -> int -> Diff_cstore.t result
+
 val get_tagged_delete_tree : Config_tree.t -> Config_tree.t

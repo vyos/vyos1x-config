@@ -23,6 +23,9 @@ let rec parse vy_inside_node lexbuf (checkpoint : Config_tree.t I.checkpoint) =
        raise (Syntax_error (None, "invalid syntax (parser rejected the input)"))
 
 let from_string s =
+  (* raises:
+      [Syntax_error] from parse
+   *)
   let vy_inside_node = false in
   let lexbuf = Lexing.from_string s in
   parse vy_inside_node lexbuf (Vyos1x_parser.Incremental.config lexbuf.lex_curr_p)
