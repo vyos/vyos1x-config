@@ -19,9 +19,19 @@ module Diff_compare : sig
              }
 end
 
+module Diff_show : sig
+    type t = { left: Config_tree.t;
+               right: Config_tree.t;
+               base_path: string list;
+               open_blocks: string list list;
+               config_diff: string;
+             }
+end
+
 type _ diff_result =
     | Diff_tree : Diff_tree.t -> Diff_tree.t diff_result
     | Diff_compare : Diff_compare.t -> Diff_compare.t diff_result
+    | Diff_show : Diff_show.t -> Diff_show.t diff_result
 
 val eval_diff_result : 'a diff_result -> 'a
 
@@ -40,6 +50,10 @@ val diff_tree : string list -> Config_tree.t -> Config_tree.t -> Config_tree.t
 [@@alert exn "Config_diff.Empty_comparison"]
 
 val diff_compare : ?cmds:bool -> string list -> Config_tree.t -> Config_tree.t -> string
+[@@alert exn "Config_diff.Incommensurable"]
+[@@alert exn "Config_diff.Empty_comparison"]
+
+val diff_show : Reference_tree.t -> string list -> Config_tree.t -> Config_tree.t -> string
 [@@alert exn "Config_diff.Incommensurable"]
 [@@alert exn "Config_diff.Empty_comparison"]
 
