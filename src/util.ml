@@ -159,3 +159,9 @@ let colex_order l k =
 
 let is_empty l =
     List.compare_length_with l 0 = 0
+
+let rec is_sublist l k =
+    match l, k with
+    | [], _ -> true
+    | _, [] -> false
+    | hl::tl, hk::tk -> hl = hk && is_sublist tl tk
