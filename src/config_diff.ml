@@ -86,24 +86,17 @@ let right_opt_pairs n m =
                 name_of x = name_of y) in
         (maybe_node, Some y))
 
-(* this is module option 'compare', but with Some _ preceding None, which is
-   useful for maintaing left-right -> top-down order for diff_compare
- *)
-let opt_cmp o0 o1 =
-    match o0, o1 with
-    | Some v0, Some v1 -> compare (name_of v0) (name_of v1)
-    | None, None -> 0
-    | None, Some _ -> 1
-    | Some _, None -> -1
-
-let tuple_cmp t1 t2 =
-    match t1, t2 with
-    | (x1, y1), (x2, y2) ->
-            let first = opt_cmp x1 x2 in
-            if first <> 0 then first else opt_cmp y1 y2
+let opt_tuple_cmp t1 t2 =
+    let opt_tuple_val t =
+        match t with
+        | None, None -> ""
+        | Some x, None -> name_of x
+        | None, Some y -> name_of y
+        | Some x, Some _ -> name_of x
+    in Util.lexical_numeric_compare (opt_tuple_val t1) (opt_tuple_val t2)
 
 let opt_zip n m =
-    left_opt_pairs n m @ right_opt_pairs n m |> List.sort_uniq tuple_cmp
+    left_opt_pairs n m @ right_opt_pairs n m |> List.sort_uniq opt_tuple_cmp
 
 let get_opt_name left_opt right_opt =
     match left_opt, right_opt with
