@@ -33,3 +33,5 @@ val colex_order : string list -> string list -> int
 val is_empty : 'a list -> bool
 
 val is_sublist : 'a list -> 'a list -> bool
+
+val flag : 'a list -> 'a list list
