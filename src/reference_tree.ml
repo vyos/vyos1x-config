@@ -595,7 +595,6 @@ let get_completion_data reftree path =
 (* Convert from config path to reference tree path *)
 let refpath reftree path =
     (* raises:
-        [Vytree.Empty_path],
         [Vytree.Nonexistent_path] from is_tag
      *)
     let rec aux acc p =
