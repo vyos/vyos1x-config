@@ -92,6 +92,12 @@ val render_commands : ?op:command -> t -> string list -> string
 
 val render_config : ?ord_val:bool -> t -> string
 
+val render_node : ?ord_val:bool -> int -> int -> t -> string
+
+val render_values : ?ord_val:bool -> string -> string -> string list -> string
+
+val make_indent : int -> int -> string
+
 val render_json : t -> string
 
 val render_json_ast : t -> string

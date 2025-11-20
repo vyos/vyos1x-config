@@ -159,3 +159,16 @@ let colex_order l k =
 
 let is_empty l =
     List.compare_length_with l 0 = 0
+
+let rec is_sublist l k =
+    match l, k with
+    | [], _ -> true
+    | _, [] -> false
+    | hl::tl, hk::tk -> hl = hk && is_sublist tl tk
+
+let flag path =
+    let len = List.length path in
+    let aux p i =
+        drop_last_n p (len - i - 1)
+    in
+    List.mapi (fun k _ -> aux path k) path

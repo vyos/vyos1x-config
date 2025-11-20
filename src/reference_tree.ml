@@ -607,13 +607,6 @@ let refpath reftree path =
     | _, [] -> acc
     in aux [] path
 
-let flag path =
-    let len = List.length path in
-    let aux p i =
-        Util.drop_last_n p (len - i - 1)
-    in
-    List.mapi (fun k _ -> aux path k) path
-
 let set_tag_data rtree ctree path =
     (* raises:
         [Vytree.Empty_path],
@@ -634,7 +627,7 @@ let set_tag_data rtree ctree path =
             then (Config_tree.set_tag[@alert "-exn"]) ct p true
             else ct
         in
-        List.fold_left (set_tag rtree) ctree (flag path)
+        List.fold_left (set_tag rtree) ctree (Util.flag path)
 
 let set_leaf_data rtree ctree path =
     (* raises:
