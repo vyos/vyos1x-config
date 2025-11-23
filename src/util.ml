@@ -172,3 +172,55 @@ let flag path =
         drop_last_n p (len - i - 1)
     in
     List.mapi (fun k _ -> aux path k) path
+
+
+exception End_of_read of in_channel
+
+let file_compare ?(ignore_line_prefix="") file1 file2 =
+    let open_files f1 f2 =
+        let ic1_opt =
+            try Some (open_in f1)
+            with Sys_error _ -> None
+        in
+        let ic2_opt =
+            try Some (open_in f2)
+            with Sys_error _ -> None
+        in
+        ic1_opt, ic2_opt
+    in
+    let rec line_loop ic =
+        let line =
+            try
+                input_line ic
+            with End_of_file -> raise (End_of_read ic)
+        in
+        let line' = String.trim line in
+        if line' <> "" &&
+            (ignore_line_prefix = "" ||
+             not (String.starts_with ~prefix:ignore_line_prefix line'))
+        then line'
+        else line_loop ic
+    in
+    let rec loop ic1 ic2 =
+        try
+            let line1 = line_loop ic1 in
+            let line2 = line_loop ic2 in
+            if line1 <> line2 then false
+            else loop ic1 ic2
+        with End_of_read ic ->
+            try
+                if ic = ic1 then
+                    let () = ignore (line_loop ic2) in false
+                else false
+            with End_of_read _ ->
+              true
+    in
+    match open_files file1 file2 with
+    | Some ic1, Some ic2 ->
+        let result = loop ic1 ic2 in
+        close_in ic1;
+        close_in ic2;
+        result
+    | Some ic1, None -> close_in ic1; false
+    | None, Some ic2 -> close_in ic2; false
+    | None, None -> false
