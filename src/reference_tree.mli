@@ -109,7 +109,6 @@ val get_completion_data : t -> string list -> (node_type * bool * string) list
 [@@alert exn "Vytree.Nonexistent_path"]
 
 val refpath : t -> string list -> string list
-[@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]
 
 val set_tag_data : t -> Config_tree.t -> string list -> Config_tree.t
@@ -119,6 +118,8 @@ val set_tag_data : t -> Config_tree.t -> string list -> Config_tree.t
 val set_leaf_data : t -> Config_tree.t -> string list -> Config_tree.t
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]
+
+val allowed_edit_level : t -> string list -> (unit, string) result
 
 val get_ceil_data : (ref_node_data -> string option) -> t -> string list -> string option
 [@@alert exn "Vytree.Empty_path"]
