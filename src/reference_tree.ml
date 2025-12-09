@@ -649,12 +649,18 @@ let set_leaf_data rtree ctree path =
 let potential_tag_value rtree cpath =
     (* check given path against reftree for potential to be tag value
      *)
+    (* raises:
+        [Vytree.Nonexistent_path] from refpath; is_tag
+     *)
     match cpath with
     | [] | [_] -> false
     | _ ->
+    let refp = refpath rtree cpath in
     let ref_drop_last = refpath rtree (Util.drop_last cpath) in
-    if is_tag rtree ref_drop_last then true
-    else false
+    match ref_drop_last with
+    | [] -> false
+    | _ as c when c = refp -> is_tag rtree refp
+    | _ -> false
 
 (* The 'edit' command can descend along a not-as-yet configured path,
    assuming that it is
