@@ -662,6 +662,21 @@ let potential_tag_value rtree cpath =
     | _ as c when c = refp -> is_tag rtree refp
     | _ -> false
 
+let potential_leaf_value rtree cpath =
+    (* check given path against reftree for potential to be leaf value
+     *)
+    (* raises:
+        [Vytree.Nonexistent_path] from refpath; is_leaf
+     *)
+    match cpath with
+    | [] | [_] -> false
+    | _ ->
+    let ref_drop_last = refpath rtree (Util.drop_last cpath) in
+    match ref_drop_last with
+    | [] -> false
+    | _ -> is_leaf rtree ref_drop_last
+
+
 (* The 'edit' command can descend along a not-as-yet configured path,
    assuming that it is
    (1) a valid path of the reference tree
@@ -674,18 +689,22 @@ let allowed_edit_level rtree path =
         let refp = refpath rtree path
         in
         if Util.is_empty refp then
-            Error "The \"edit\" command cannot be issued at an empty path"
+            Error {|The "edit" command cannot be issued at an empty path|}
         else
         if is_tag rtree refp && not (potential_tag_value rtree path)
         then
-            Error "The \"edit\" command cannot be issued at the level of tag node"
+            Error {|The "edit" command cannot be issued at the level of tag node|}
+        else
+        if potential_leaf_value rtree path
+        then
+            Error {|The "edit" command cannot be issued at the level of leaf value|}
         else
         if is_leaf rtree refp
         then
-            Error "The \"edit\" command cannot be issued at the level of leaf node"
+            Error {|The "edit" command cannot be issued at the level of leaf node|}
         else Ok ()
     with Vytree.Nonexistent_path ->
-        Error "The \"edit\" command cannot be issued at a non-existent path of the reference tree"
+        Error {|The "edit" command cannot be issued at a non-existent path of the reference tree|}
 
 let get_ceil_data f reftree path =
     (* raises:
