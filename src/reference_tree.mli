@@ -107,6 +107,10 @@ val get_completion_data : t -> string list -> (node_type * bool * string) list
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]
 
+val get_default_value : t -> string list -> string option
+[@@alert exn "Vytree.Empty_path"]
+[@@alert exn "Vytree.Nonexistent_path"]
+
 val refpath : t -> string list -> string list
 
 val set_tag_data : t -> Config_tree.t -> string list -> Config_tree.t

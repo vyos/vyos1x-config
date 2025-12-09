@@ -605,6 +605,17 @@ let get_completion_data reftree path =
     in
     List.map aux (Vytree.children_of_node @@ (Vytree.get[@alert "-exn"]) reftree path)
 
+let get_default_value reftree path =
+    (* raises:
+        [Vytree.Empty_path]
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get_data:
+        [Vytree.Empty_path] allow raise
+        [Vytree.Nonexistent_path] allow raise
+     *)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
+    data.default_value
+
 (* Convert from config path to reference tree path *)
 let refpath reftree path =
     let check_existence p =
