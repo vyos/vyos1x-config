@@ -1,7 +1,6 @@
-type node_type =
-    | Leaf
-    | Tag
-    | Other
+type node_type = [ `Leaf | `Tag | `Other ]
+
+type path_type = [ node_type | `Tag_value | `Leaf_value | `Multi | `Invalid ]
 
 type completion_help_type =
     | List of string [@name "list"]
@@ -119,6 +118,10 @@ val set_leaf_data : t -> Config_tree.t -> string list -> Config_tree.t
 [@@alert exn "Vytree.Nonexistent_path"]
 
 val reference_path_exists : t -> string list -> bool
+
+val get_path_type : t -> string list -> path_type
+
+val get_path_type_str : ?legacy_format:bool -> t -> string list -> string
 
 val allowed_edit_level : t -> string list -> (unit, string) result
 
