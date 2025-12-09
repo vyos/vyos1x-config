@@ -118,6 +118,8 @@ val set_leaf_data : t -> Config_tree.t -> string list -> Config_tree.t
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]
 
+val reference_path_exists : t -> string list -> bool
+
 val allowed_edit_level : t -> string list -> (unit, string) result
 
 val get_ceil_data : (ref_node_data -> string option) -> t -> string list -> string option
