@@ -742,30 +742,21 @@ let get_path_type_str ?(legacy_format=false) rtree cpath =
    assuming that it is
    (1) a valid path of the reference tree
    (2) neither a tag nor leaf node
-   To confirm (2) in the case of a tag node, one has to allow for a
-   'potential' tag value as final element of the path.
  *)
 let allowed_edit_level rtree path =
     if Util.is_empty path then
         Error {|The "edit" command cannot be issued at an empty path|}
     else
-    let refp = refpath rtree path
-    in
-    if Util.is_empty refp then
+    match get_path_type rtree path with
+    | `Invalid ->
         Error {|The "edit" command cannot be issued at a non-existent path of the reference tree|}
-    else
-    if is_tag rtree refp && not (potential_tag_value rtree path)
-    then
+    | `Tag ->
         Error {|The "edit" command cannot be issued at the level of tag node|}
-    else
-    if potential_leaf_value rtree path
-    then
-        Error {|The "edit" command cannot be issued at the level of leaf value|}
-    else
-    if is_leaf rtree refp
-    then
+    | `Leaf ->
         Error {|The "edit" command cannot be issued at the level of leaf node|}
-    else Ok ()
+    | `Leaf_value ->
+        Error {|The "edit" command cannot be issued at the level of leaf value|}
+    | _ -> Ok ()
 
 let get_ceil_data f reftree path =
     (* raises:
