@@ -2,6 +2,9 @@ type node_type = [ `Leaf | `Tag | `Other ]
 
 type path_type = [ node_type | `Tag_value | `Leaf_value | `Multi | `Invalid ]
 
+val path_type_to_yojson : path_type -> Yojson.Safe.t
+val path_type_of_yojson : Yojson.Safe.t -> (path_type, string) result
+
 type completion_help_type =
     | List of string [@name "list"]
     | Path of string [@name "path"]
@@ -100,10 +103,6 @@ val get_help_string : t -> string list -> string
 [@@alert exn "Vytree.Nonexistent_path"]
 
 val get_value_help : t -> string list -> (string * string) list
-[@@alert exn "Vytree.Empty_path"]
-[@@alert exn "Vytree.Nonexistent_path"]
-
-val get_completion_data : t -> string list -> (node_type * bool * string) list
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]
 

@@ -591,20 +591,6 @@ let get_value_help reftree path =
     let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.value_help
 
-let get_completion_data reftree path =
-    (* raises:
-        [Vytree.Empty_path]
-        [Vytree.Nonexistent_path]
-       alert exn Vytree.get:
-        [Vytree.Empty_path] allow raise
-        [Vytree.Nonexistent_path] allow raise
-     *)
-    let aux node =
-        let data = Vytree.data_of_node node in
-        (data.node_type, data.multi, data.help)
-    in
-    List.map aux (Vytree.children_of_node @@ (Vytree.get[@alert "-exn"]) reftree path)
-
 let get_default_value reftree path =
     (* raises:
         [Vytree.Empty_path]
