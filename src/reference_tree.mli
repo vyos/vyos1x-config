@@ -1,7 +1,9 @@
-type node_type =
-    | Leaf
-    | Tag
-    | Other
+type node_type = [ `Leaf | `Tag | `Other ]
+
+type path_type = [ node_type | `Tag_value | `Leaf_value | `Multi | `Invalid ]
+
+val path_type_to_yojson : path_type -> Yojson.Safe.t
+val path_type_of_yojson : Yojson.Safe.t -> (path_type, string) result
 
 type completion_help_type =
     | List of string [@name "list"]
@@ -104,12 +106,11 @@ val get_value_help : t -> string list -> (string * string) list
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]
 
-val get_completion_data : t -> string list -> (node_type * bool * string) list
+val get_default_value : t -> string list -> string option
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]
 
 val refpath : t -> string list -> string list
-[@@alert exn "Vytree.Nonexistent_path"]
 
 val set_tag_data : t -> Config_tree.t -> string list -> Config_tree.t
 [@@alert exn "Vytree.Empty_path"]
@@ -118,6 +119,12 @@ val set_tag_data : t -> Config_tree.t -> string list -> Config_tree.t
 val set_leaf_data : t -> Config_tree.t -> string list -> Config_tree.t
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]
+
+val reference_path_exists : t -> string list -> bool
+
+val get_path_type : t -> string list -> path_type
+
+val get_path_type_str : ?legacy_format:bool -> t -> string list -> string
 
 val allowed_edit_level : t -> string list -> (unit, string) result
 

@@ -1,18 +1,31 @@
-type node_type =
-    | Leaf
-    | Tag
-    | Other
+type node_type = [ `Leaf | `Tag | `Other ]
 
 let node_type_to_yojson = function
-    | Leaf -> `String "leaf"
-    | Tag -> `String "tag"
-    | Other -> `String "other"
+    | `Leaf -> `String "leaf"
+    | `Tag -> `String "tag"
+    | `Other -> `String "other"
 
 let node_type_of_yojson = function
-    | `String "leaf" -> Ok Leaf
-    | `String "tag" -> Ok Tag
-    | `String "other" -> Ok Other
+    | `String "leaf" -> Ok `Leaf
+    | `String "tag" -> Ok `Tag
+    | `String "other" -> Ok `Other
     | json -> Error (Yojson.Safe.to_string json)
+
+type path_type = [ node_type | `Tag_value | `Leaf_value | `Multi | `Invalid ]
+
+let path_type_to_yojson = function
+    | `Tag_value -> `String "tag_value"
+    | `Leaf_value -> `String "leaf_value"
+    | `Multi -> `String "multi"
+    | `Invalid -> `String "invalid"
+    | #node_type as c -> node_type_to_yojson c
+
+let path_type_of_yojson = function
+    | `String "tag_value" -> Ok `Tag_value
+    | `String "leaf_value" -> Ok `Leaf_value
+    | `String "multi" -> Ok `Multi
+    | `String "invalid" -> Ok `Invalid
+    | _ as s -> node_type_of_yojson s
 
 type completion_help_type =
     | List of string [@name "list"]
@@ -57,7 +70,7 @@ exception Bad_interface_definition of string
 exception Validation_error of string
 
 let default_data = {
-    node_type = Other;
+    node_type = `Other;
     constraints = [];
     constraint_group = [];
     constraint_error_message = "Invalid value";
@@ -85,9 +98,9 @@ let default = Vytree.make default_data ""
 
 let node_type_of_string s =
     match s with
-    | "node" -> Other
-    | "tagNode" -> Tag
-    | "leafNode" -> Leaf
+    | "node" -> `Other
+    | "tagNode" -> `Tag
+    | "leafNode" -> `Leaf
     | _ -> raise (Bad_interface_definition
                   (Printf.sprintf "node, tagNode, or leafNode expected, %s found" s))
 
@@ -260,7 +273,7 @@ let rec insert_from_xml basepath reftree xml =
                 (Vytree.insert_maybe[@alert "-exn"]) reftree path data
         in
         (match node_type with
-        | Leaf -> new_tree
+        | `Leaf -> new_tree
         | _ ->
             let children = find_xml_child "children" xml in
             (match children with
@@ -325,7 +338,7 @@ let validate_path validators_dir node path =
     let rec aux node path acc =
         let data = Vytree.data_of_node node in
         match data.node_type with
-        | Leaf ->
+        | `Leaf ->
             begin
             match path with
             | [] ->
@@ -352,7 +365,7 @@ let validate_path validators_dir node path =
                 let msg = Printf.sprintf "Path %s is too long" (show_path acc)
                 in raise (Validation_error msg)
             end
-        | Tag ->
+        | `Tag ->
             begin
             match path with
             | p :: p' :: ps ->
@@ -415,7 +428,7 @@ let validate_path validators_dir node path =
                     Printf.sprintf "Configuration path %s requires a value" (show_path acc)
                 in raise (Validation_error msg)
             end
-        | Other ->
+        | `Other ->
             begin
             match path with
             | [] -> ()
@@ -434,14 +447,14 @@ let split_path node path =
     let rec aux node path acc =
         let data = Vytree.data_of_node node in
         match data.node_type with
-        | Leaf ->
+        | `Leaf ->
             begin
             match path with
             | [] -> (List.rev acc, None)
             | [p] -> (List.rev acc, Some p)
             | _ -> (List.rev acc, None)
             end
-        | Tag ->
+        | `Tag ->
             begin
             match path with
             | p :: p' :: ps ->
@@ -452,7 +465,7 @@ let split_path node path =
             | [p] -> (List.rev (p :: acc), None)
             | _ -> (List.rev acc, None)
             end
-        | Other ->
+        | `Other ->
             begin
             match path with
             | [] -> (List.rev acc, None)
@@ -507,7 +520,7 @@ let is_tag reftree path =
      *)
     let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     match data.node_type with
-    | Tag -> true
+    | `Tag -> true
     | _ -> false
 
 let is_leaf reftree path =
@@ -520,7 +533,7 @@ let is_leaf reftree path =
      *)
     let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     match data.node_type with
-    | Leaf -> true
+    | `Leaf -> true
     | _ -> false
 
 let is_valueless reftree path =
@@ -578,31 +591,39 @@ let get_value_help reftree path =
     let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.value_help
 
-let get_completion_data reftree path =
+let get_default_value reftree path =
     (* raises:
         [Vytree.Empty_path]
         [Vytree.Nonexistent_path]
-       alert exn Vytree.get:
+       alert exn Vytree.get_data:
         [Vytree.Empty_path] allow raise
         [Vytree.Nonexistent_path] allow raise
      *)
-    let aux node =
-        let data = Vytree.data_of_node node in
-        (data.node_type, data.multi, data.help)
-    in
-    List.map aux (Vytree.children_of_node @@ (Vytree.get[@alert "-exn"]) reftree path)
+    let data = (Vytree.get_data[@alert "-exn"]) reftree path in
+    data.default_value
 
 (* Convert from config path to reference tree path *)
 let refpath reftree path =
-    (* raises:
-        [Vytree.Nonexistent_path] from is_tag
-     *)
+    let check_existence p =
+        match p with
+        | [] -> false
+        | _ -> (Vytree.exists[@alert "-exn"]) reftree p
+    in
     let rec aux acc p =
     match acc, p with
-    | [], h :: tl -> aux (acc @ [h]) tl
-    | _, [h] -> if is_tag reftree acc then acc else acc @ [h]
-    | _, h :: h' :: tl -> if is_tag reftree acc then aux (acc @ [h']) tl
-                          else aux (acc @ [h]) ([h'] @ tl)
+    | [], h :: tl ->
+            if check_existence [h] then aux [h] tl else []
+    | _, [h] ->
+            if is_tag reftree acc then acc else
+                let p = acc @ [h] in
+                if check_existence p then p else []
+    | _, h :: h' :: tl ->
+            if is_tag reftree acc then
+                let p = acc @ [h'] in
+                if check_existence p then aux p tl else []
+            else
+                let p = acc @ [h] in
+                if check_existence p then aux p ([h'] @ tl) else []
     | _, [] -> acc
     in aux [] path
 
@@ -649,37 +670,90 @@ let set_leaf_data rtree ctree path =
 let potential_tag_value rtree cpath =
     (* check given path against reftree for potential to be tag value
      *)
+    (* raises:
+        [Vytree.Nonexistent_path] from refpath; is_tag
+     *)
+    match cpath with
+    | [] | [_] -> false
+    | _ ->
+    let refp = refpath rtree cpath in
+    let ref_drop_last = refpath rtree (Util.drop_last cpath) in
+    match ref_drop_last with
+    | [] -> false
+    | _ as c when c = refp -> is_tag rtree refp
+    | _ -> false
+
+let potential_leaf_value rtree cpath =
+    (* check given path against reftree for potential to be leaf value
+     *)
+    (* raises:
+        [Vytree.Nonexistent_path] from refpath; is_leaf
+     *)
     match cpath with
     | [] | [_] -> false
     | _ ->
     let ref_drop_last = refpath rtree (Util.drop_last cpath) in
-    if is_tag rtree ref_drop_last then true
-    else false
+    match ref_drop_last with
+    | [] -> false
+    | _ -> is_leaf rtree ref_drop_last
+
+let reference_path_exists rtree cpath =
+    if Util.is_empty cpath then false
+    else
+    if potential_leaf_value rtree cpath then true
+    else
+    let rpath = refpath rtree cpath in
+    if Util.is_empty rpath then false
+    else true
+
+let get_path_type rtree cpath =
+    if Util.is_empty cpath then `Other
+    else
+    if potential_leaf_value rtree cpath then `Leaf_value
+    else
+    if potential_tag_value rtree cpath then `Tag_value
+    else
+    let rpath = refpath rtree cpath in
+    if Util.is_empty rpath then `Invalid
+    else
+    let data = (Vytree.get_data[@alert "-exn"]) rtree rpath in
+    match data.node_type with
+    | `Leaf -> if data.multi then `Multi else `Leaf
+    | _ -> (data.node_type :> path_type)
+
+let get_path_type_str ?(legacy_format=false) rtree cpath =
+    let path_typ = get_path_type rtree cpath in
+    if not legacy_format then
+        match path_type_to_yojson path_typ with
+        | `String s -> s
+    else
+    match path_typ with
+    | `Invalid -> "leaf" (* yes, really, that is legacy behavior *)
+    | `Tag_value | `Other -> "non-leaf"
+    | `Tag -> "tag"
+    | `Multi -> "multi"
+    | `Leaf | `Leaf_value -> "leaf"
+
 
 (* The 'edit' command can descend along a not-as-yet configured path,
    assuming that it is
    (1) a valid path of the reference tree
    (2) neither a tag nor leaf node
-   To confirm (2) in the case of a tag node, one has to allow for a
-   'potential' tag value as final element of the path.
  *)
 let allowed_edit_level rtree path =
-    try
-        let refp = refpath rtree path
-        in
-        if Util.is_empty refp then
-            Error "The \"edit\" command cannot be issued at an empty path"
-        else
-        if is_tag rtree refp && not (potential_tag_value rtree path)
-        then
-            Error "The \"edit\" command cannot be issued at the level of tag node"
-        else
-        if is_leaf rtree refp
-        then
-            Error "The \"edit\" command cannot be issued at the level of leaf node"
-        else Ok ()
-    with Vytree.Nonexistent_path ->
-        Error "The \"edit\" command cannot be issued at a non-existent path of the reference tree"
+    if Util.is_empty path then
+        Error {|The "edit" command cannot be issued at an empty path|}
+    else
+    match get_path_type rtree path with
+    | `Invalid ->
+        Error {|The "edit" command cannot be issued at a non-existent path of the reference tree|}
+    | `Tag ->
+        Error {|The "edit" command cannot be issued at the level of tag node|}
+    | `Leaf ->
+        Error {|The "edit" command cannot be issued at the level of leaf node|}
+    | `Leaf_value ->
+        Error {|The "edit" command cannot be issued at the level of leaf value|}
+    | _ -> Ok ()
 
 let get_ceil_data f reftree path =
     (* raises:
