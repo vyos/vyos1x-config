@@ -699,7 +699,13 @@ let diff_show rt path left right =
     else
         let (left, right) =
             if not (Util.is_empty path) then
-            (Config_tree.get_subtree left path, Config_tree.get_subtree right path)
+            let with_node =
+            match Reference_tree.get_path_type rt path with
+            | `Leaf -> true
+            | _ -> false
+            in
+            (Config_tree.get_subtree ~with_node left path,
+            Config_tree.get_subtree ~with_node right path)
             else (left, right)
         in
         let config_show = make_diff_show left right path in
