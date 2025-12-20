@@ -587,12 +587,7 @@ let config_diff (rt : Reference_tree.t) ?(recurse=true) (path : string list) (Di
     in
     match m with
     | Added ->
-        let node =
-            if (Config_tree.is_tag_value[@alert "-exn"]) res.right path then
-                (Vytree.get[@alert "-exn"]) res.right (Util.drop_last path)
-            else
-                (Vytree.get[@alert "-exn"]) res.right path
-        in
+        let node = (Vytree.get[@alert "-exn"]) res.right path in
         let level = get_level_at_path res.right path in
         let rendered =
             Config_tree.render_node indent level node
@@ -600,12 +595,7 @@ let config_diff (rt : Reference_tree.t) ?(recurse=true) (path : string list) (Di
         let rev_diff = diff_str ^ annotate_rendered m rendered in
         Diff_show {res with config_diff = rev_diff; open_blocks = rev_blocks;}
     | Subtracted ->
-        let node =
-            if (Config_tree.is_tag_value[@alert "-exn"]) res.left path then
-                (Vytree.get[@alert "-exn"]) res.left (Util.drop_last path)
-            else
-                (Vytree.get[@alert "-exn"]) res.left path
-        in
+        let node = (Vytree.get[@alert "-exn"]) res.left path in
         let level = get_level_at_path res.left path in
         let rendered =
             Config_tree.render_node indent level node
