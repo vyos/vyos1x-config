@@ -274,7 +274,7 @@ let value_paths_of_tree node =
                             q'::acc
                         in List.fold_left f a vs
                     in (p, a')
-    in List.rev (snd (Vytree.fold_tree_with_path (func node) ([], []) node))
+    in List.rev (Vytree.fold_tree_with_path (func node) ([], []) node)
 
 let prune_delete node path =
     (* raises:

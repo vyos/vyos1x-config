@@ -933,7 +933,7 @@ let validate_tree_filter dir rt ct =
             List.fold_left try_validate (p, (ctree, out)) l'
     in
     let tree, out =
-        snd (Vytree.fold_tree_with_path validate_path_filter ([], (ct, "")) ct)
+        Vytree.fold_tree_with_path validate_path_filter ([], (ct, "")) ct
     in
     tree, out
 

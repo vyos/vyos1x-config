@@ -292,7 +292,8 @@ let is_terminal_path node path =
         | _ -> false
     with Nonexistent_path -> false
 
-let rec fold_tree_with_path f (p', a) t =
+let fold_tree_with_path f (p', a) t =
+    let rec fold_func f (p', a) t =
     let p =
         match name_of_node t with
         | "" -> p'
@@ -302,5 +303,6 @@ let rec fold_tree_with_path f (p', a) t =
     match children with
     | [] -> (Util.drop_first p), snd (f (p, a) t)
     | c -> let res =
-        List.fold_left (fold_tree_with_path f) (f (p, a) t) c in
+        List.fold_left (fold_func f) (f (p, a) t) c in
         (Util.drop_first p), snd res
+    in snd (fold_func f (p', a) t)

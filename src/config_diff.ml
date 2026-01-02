@@ -330,7 +330,7 @@ let get_tagged_delete_tree dt =
         else
             (p, a)
     in
-    snd (Vytree.fold_tree_with_path f ([], del_tree) del_tree)
+    Vytree.fold_tree_with_path f ([], del_tree) del_tree
 
 
 (* the following builds a diff_func to return a unified diff string of
