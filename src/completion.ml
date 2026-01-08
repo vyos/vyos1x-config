@@ -85,17 +85,14 @@ let get_completion_env rtree ctree op cpath =
         let cnode =
             match path with
             | [] -> ctree
-            | _ -> (Vytree.get[@alert "-exn"]) ctree path
+            | _ -> try (Vytree.get[@alert "-exn"]) ctree path
+                   with Vytree.Nonexistent_path -> Config_tree.default
         in
         let children =
             let child_set = Vytree.children_of_node rnode in
             if not restricted then child_set
             else
-            let extant_children =
-                try
-                    Vytree.list_children cnode
-                with Vytree.Nonexistent_path -> []
-            in
+            let extant_children = Vytree.list_children cnode in
             let is_extant s =
                 List.mem (Vytree.name_of_node s) extant_children
             in
