@@ -134,13 +134,19 @@ let get_completion_env_str ?(legacy_format=false) rtree ctree op cpath =
         let (comp_vals, comp_val, comp_help, help_format, help_string) =
         match path_typ with
         | `Tag | `Leaf | `Multi ->
-            let (compl_vals, _, _, value_help) =
+            let (compl_vals, _, help, value_help) =
                 let a, b, c, d =
                     List.fold_left func ([], [], [], []) comp in
                 List.rev a, b, c, List.rev d
             in
             let value_help_fmt, value_help_string = List.split value_help in
-            (compl_vals, true, "", value_help_fmt, value_help_string)
+            begin
+            match value_help_string with
+            | [] ->
+                (compl_vals, true, "", ["txt"], help)
+            | _ ->
+                (compl_vals, true, "", value_help_fmt, value_help_string)
+            end
         | `Other | `Tag_value ->
             let (compl_vals, _, help, _) =
                 let sorted_comp =
