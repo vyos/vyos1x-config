@@ -14,6 +14,8 @@ val string_of_list : string list -> string
 
 val json_of_list : string list -> string
 
+val list_of_string : string -> string list
+
 val list_of_path : string -> string list
 
 val drop_last : 'a list -> 'a list
