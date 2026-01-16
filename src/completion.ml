@@ -32,6 +32,33 @@ let get_completion_data (node: Reference_tree.t) =
       value_help=data.value_help;
     }
 
+let execute_completion_script cmd =
+    let () = Unix.putenv "vyos_completion_dir" "/usr/libexec/vyos/completion" in
+    let chan = Unix.open_process_in cmd in
+    let out = In_channel.input_all chan in
+    let result = Unix.close_process_in chan in
+    match result with
+    | Unix.WEXITED 0 -> out
+    | _ -> ""
+
+let read_completion_help ctree (lst: Reference_tree.completion_help_type list) =
+    let read_elem chelp =
+        match chelp with
+        | Reference_tree.List l -> Util.list_of_string l
+        | Reference_tree.Path p ->
+            begin
+            let path = Util.list_of_string p in
+            try (Vytree.children_of_path[@alert "-exn"]) ctree path
+            with Vytree.Empty_path | Vytree.Nonexistent_path -> []
+            end
+        | Reference_tree.Script s ->
+            Util.list_of_string (execute_completion_script s)
+    in
+    let func acc elem =
+        acc @ (read_elem elem)
+    in
+    List.fold_left func [] lst
+
 let get_completion_env rtree ctree op cpath =
     let op = op_of_string op in
     match op with
@@ -60,20 +87,34 @@ let get_completion_env rtree ctree op cpath =
     | `Leaf | `Multi ->
         let compl_env =
             get_completion_data ((Vytree.get[@alert "-exn"]) rtree rpath) in
+        let comp_help = read_completion_help ctree compl_env.completion_help
+        in
         let values =
-            try
-                (Config_tree.get_values[@alert "-exn"]) ctree path
-            with Vytree.Nonexistent_path -> []
+            match comp_help with
+            | [] ->
+                begin
+                try
+                    (Config_tree.get_values[@alert "-exn"]) ctree path
+                with Vytree.Nonexistent_path -> []
+                end
+            | _ as l -> l
         in
         Ok [{ compl_env with values = values; path_typ = `Leaf_value }]
     | `Tag ->
         let compl_env =
             get_completion_data ((Vytree.get[@alert "-exn"]) rtree rpath)
         in
+        let comp_help = read_completion_help ctree compl_env.completion_help
+        in
         let values =
-            try
-                Vytree.list_children ((Vytree.get[@alert "-exn"]) ctree path)
-            with Vytree.Nonexistent_path -> []
+            match comp_help with
+            | [] ->
+                begin
+                try
+                    Vytree.list_children ((Vytree.get[@alert "-exn"]) ctree path)
+                with Vytree.Nonexistent_path -> []
+                end
+            | _ as l -> l
         in
         Ok [{ compl_env with values = values; path_typ = `Tag_value }]
     | _ ->
