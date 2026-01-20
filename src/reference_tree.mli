@@ -51,6 +51,8 @@ val default_data : ref_node_data
 
 val default : t
 
+val make : string -> t
+
 val load_from_xml : t -> string -> t
 [@@alert exn "Reference_tree.Bad_interface_definition"]
 
@@ -109,6 +111,8 @@ val get_value_help : t -> string list -> (string * string) list
 val get_default_value : t -> string list -> string option
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]
+
+val get_subtree : ?with_node:bool -> t -> string list -> t
 
 val refpath : t -> string list -> string list
 

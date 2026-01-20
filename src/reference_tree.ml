@@ -94,6 +94,8 @@ let default_data = {
 
 let default = Vytree.make default_data ""
 
+let make name = Vytree.make default_data name
+
 (* Loading from XML *)
 
 let node_type_of_string s =
@@ -601,6 +603,22 @@ let get_default_value reftree path =
      *)
     let data = (Vytree.get_data[@alert "-exn"]) reftree path in
     data.default_value
+
+let get_subtree ?(with_node=false) node path =
+    (* alert exn Vytree.get:
+        [Vytree.Empty_path] checked
+        [Vytree.Nonexistent_path] caught
+     *)
+    match path with
+    | [] -> node
+    | _ ->
+    try
+        let n = (Vytree.get[@alert "-exn"]) node path in
+        if with_node then
+            Vytree.make_full default_data "" [n]
+        else
+            Vytree.make_full default_data "" (Vytree.children_of_node n)
+    with Vytree.Nonexistent_path -> make ""
 
 (* Convert from config path to reference tree path *)
 let refpath reftree path =
