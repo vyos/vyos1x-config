@@ -247,9 +247,21 @@ let get_subtree ?(with_node=false) node path =
     try
         let n = (Vytree.get[@alert "-exn"]) node path in
         if with_node then
-            Vytree.make_full default_data "" [n]
+            let data =
+                (* preserve tag attribute *)
+                match (is_tag_value node path) with
+                | true -> {default_data with tag = true}
+                | false -> default_data
+            in
+            Vytree.make_full data "" [n]
         else
-            Vytree.make_full default_data "" (Vytree.children_of_node n)
+            let data =
+                (* preserve tag attribute *)
+                match (is_tag node path) with
+                | true -> {default_data with tag = true}
+                | false -> default_data
+            in
+            Vytree.make_full data "" (Vytree.children_of_node n)
     with Vytree.Nonexistent_path -> make ""
 
 let value_paths_of_tree node =
