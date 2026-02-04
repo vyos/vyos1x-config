@@ -306,3 +306,28 @@ let fold_tree_with_path f (p', a) t =
         List.fold_left (fold_func f) (f (p, a) t) c in
         (Util.drop_first p), snd res
     in snd (fold_func f (p', a) t)
+
+(** Allow function called in fold to maintain a list of values for each
+    depth level of tree. A simple example is for the the function to cons a
+    boolean value to the list v at each call of the depth-first traversal;
+    at the return to local root, the value for that level is restored.
+    Note that if the function returns the empty list, this function reduces
+    to fold_tree_with_path.
+ *)
+
+let fold_tree_with_path_and_list f ((p', v), a) t =
+    let rec fold_func f ((p', v), a) t =
+    let p =
+        match name_of_node t with
+        | "" -> p'
+        | name -> name :: p'
+    in
+    let children = children_of_node t in
+    match children with
+    | [] -> let res =
+        f ((p, v), a) t in
+        (Util.drop_first p, Util.drop_first (snd (fst res))), snd res
+    | c -> let res =
+        List.fold_left (fold_func f) (f ((p, v), a) t) c in
+        (Util.drop_first p, Util.drop_first (snd (fst res))), snd res
+    in snd (fold_func f ((p', v), a) t)

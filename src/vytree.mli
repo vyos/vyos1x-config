@@ -96,3 +96,6 @@ val is_terminal_path : 'a t -> string list -> bool
 [@@alert exn "Vytree.Empty_path"]
 
 val fold_tree_with_path: (string list * 'acc -> 'b t -> string list * 'acc) -> string list * 'acc -> 'b t -> 'acc
+
+val fold_tree_with_path_and_list: ((string list * bool list) * 'acc -> 'b t ->
+    (string list * bool list) * 'acc) -> (string list * bool list) * 'acc -> 'b t -> 'acc
