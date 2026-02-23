@@ -1,8 +1,9 @@
-type op_type = Set | Delete | Show | Comment | Unknown
+type op_type = Set | Edit | Delete | Show | Comment | Unknown
 
 let op_of_string op_str =
     match op_str with
     | "set" -> Set
+    | "edit" -> Edit
     | "delete" -> Delete
     | "show" -> Show
     | "comment" -> Comment
