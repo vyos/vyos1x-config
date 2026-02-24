@@ -1,4 +1,4 @@
-type op_type = Set | Edit | Delete | Show | Comment | Unknown
+type op_type = Set | Edit | Delete | Show | Comment | Copy | Rename | Unknown
 
 let op_of_string op_str =
     match op_str with
@@ -7,6 +7,8 @@ let op_of_string op_str =
     | "delete" -> Delete
     | "show" -> Show
     | "comment" -> Comment
+    | "copy" -> Copy
+    | "rename" -> Rename
     | _ -> Unknown
 
 type completion_env = {
@@ -67,7 +69,7 @@ let get_completion_env rtree ctree op cpath =
     | _ ->
     let restricted =
         match op with
-        | Delete | Show | Comment -> true
+        | Delete | Show | Comment | Copy | Rename -> true
         | _ -> false
     in
     let last = Util.get_last cpath in
