@@ -28,6 +28,7 @@ type ref_node_data = {
     constraints: Value_checker.value_constraint list;
     constraint_group: Value_checker.value_constraint list;
     constraint_error_message: string;
+    constraint_silence_output: bool;
     completion_help: completion_help_type list;
     help: string;
     value_help: (string * string) list;

@@ -50,6 +50,7 @@ type ref_node_data = {
     constraints: Value_checker.value_constraint list;
     constraint_group: Value_checker.value_constraint list;
     constraint_error_message: string;
+    constraint_silence_output: bool;
     completion_help: completion_help_type list;
     help: string;
     value_help: (string * string) list;
@@ -74,6 +75,7 @@ let default_data = {
     constraints = [];
     constraint_group = [];
     constraint_error_message = "Invalid value";
+    constraint_silence_output = false;
     completion_help = [];
     help = "No help available";
     value_help = [];
@@ -230,6 +232,7 @@ let data_from_xml d x =
             {d with constraint_error_message=s}
         | Xml.Element ("constraint", _, _) -> load_constraint_from_xml d x
         | Xml.Element ("constraintGroup", _, _) -> load_constraint_group_from_xml d x
+        | Xml.Element ("constraintSilenceOutput", _, _) -> {d with constraint_silence_output=true}
         | Xml.Element ("priority", _, [Xml.PCData i]) ->
             {d with priority=Some i}
         | Xml.Element ("hidden", _, _) -> {d with hidden=true}
