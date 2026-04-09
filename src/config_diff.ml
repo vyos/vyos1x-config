@@ -706,7 +706,7 @@ let diff_show rt path left right =
         diff_show_result.config_diff
 
 (* mask function; mask applied on right *)
-let mask_func ?recurse:_ (path : string list) (Diff_tree res) (m : change) =
+let mask_func_inclusive ?recurse:_ (path : string list) (Diff_tree res) (m : change) =
     (* alert exn Vytree.delete:
         [Vytree.Empty_path] not possible since Unchanged pattern is only empty path
         [Vytree.Nonexistent_path] not possible as called on existing config paths (res.left)
@@ -716,18 +716,43 @@ let mask_func ?recurse:_ (path : string list) (Diff_tree res) (m : change) =
     match m with
     | Added -> Diff_tree (res)
     | Subtracted ->
-            (match path with
+        begin
+            match path with
             | [_] ->
                 Diff_tree {res with left = (Vytree.delete[@alert "-exn"]) res.left path}
             |  _  ->
                 if not ((Vytree.is_terminal_path[@alert "-exn"]) res.right (list_but_last path)) then
                     Diff_tree {res with left = (Vytree.delete[@alert "-exn"]) res.left path}
-                else Diff_tree (res))
+                else Diff_tree (res)
+        end
     | Unchanged -> Diff_tree (res)
     | Updated _ -> Diff_tree (res)
 
+(* mask function; mask applied on right *)
+let mask_func_exclusive ?recurse:_ (path : string list) (Diff_tree res) (m : change) =
+    (* alert exn Vytree.delete:
+        [Vytree.Empty_path] not possible in pattern match case
+        [Vytree.Nonexistent_path] not possible as called on existing config paths (res.left)
+       alert exn Vytree.is_terminal_path:
+        [Vytree.Empty_path] not possible in pattern match case
+     *)
+    match m with
+    | Added -> Diff_tree (res)
+    | Subtracted -> Diff_tree (res)
+    | Unchanged | Updated _ ->
+        begin
+            match path with
+            | [] -> Diff_tree(res)
+            | _ ->
+                if ((Vytree.is_terminal_path[@alert "-exn"]) res.right path) then
+                    let tmp = (Vytree.delete[@alert "-exn"]) res.left path in
+                    let left' = (Config_tree.prune_delete[@alert "-exn"]) tmp path in
+                    Diff_tree {res with left = left'}
+                else Diff_tree (res)
+        end
+
 (* call recursive diff with mask_func; mask applied on right *)
-let mask_tree left right =
+let mask_tree ?(exclusive=false) left right =
     (* raises:
         [Empty_comparison] from diff
         [Incommensurable]
@@ -736,6 +761,9 @@ let mask_tree left right =
         raise Incommensurable
     else
     let trees = make_diff_trees left right in
+    let mask_func =
+        if exclusive then mask_func_exclusive else mask_func_inclusive
+    in
     let d = diff [] mask_func trees (Option.some left, Option.some right)
     in
     let res = eval_diff_result d in

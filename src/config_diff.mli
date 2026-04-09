@@ -65,7 +65,7 @@ val tree_merge : ?destructive:bool -> Config_tree.t -> Config_tree.t -> Config_t
 [@@alert exn "Tree_alg.Incompatible_union"]
 [@@alert exn "Tree_alg.Nonexistent_child"]
 
-val mask_tree : Config_tree.t -> Config_tree.t -> Config_tree.t
+val mask_tree : ?exclusive:bool -> Config_tree.t -> Config_tree.t -> Config_tree.t
 [@@alert exn "Config_diff.Incommensurable"]
 [@@alert exn "Config_diff.Empty_comparison"]
 
