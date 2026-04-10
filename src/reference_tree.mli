@@ -117,6 +117,8 @@ val get_subtree : ?with_node:bool -> t -> string list -> t
 
 val refpath : t -> string list -> string list
 
+val refpath_from_partial : t -> string list -> string list
+
 val set_tag_data : t -> Config_tree.t -> string list -> Config_tree.t
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Vytree.Nonexistent_path"]

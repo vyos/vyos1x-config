@@ -648,6 +648,33 @@ let refpath reftree path =
     | _, [] -> acc
     in aux [] path
 
+(* Convert from partial config path to reference tree path.
+   'Partial' here means that there may or may not be intervening tag node
+   values.
+ *)
+let refpath_from_partial reftree path =
+    let check_existence p =
+        match p with
+        | [] -> false
+        | _ -> (Vytree.exists[@alert "-exn"]) reftree p
+    in
+    let rec aux acc p =
+    match acc, p with
+    | [], h :: tl ->
+            if check_existence [h] then aux [h] tl else []
+    | _, [h] ->
+            let p = acc @ [h] in
+            if check_existence p then p else
+            if is_tag reftree acc then acc else []
+    | _, h :: h' :: tl ->
+            let p = acc @ [h] in
+            if check_existence p then aux p ([h'] @ tl) else
+            let p = acc @ [h'] in
+            if is_tag reftree acc && check_existence p then aux p tl
+            else []
+    | _, [] -> acc
+    in aux [] path
+
 let set_tag_data rtree ctree path =
     (* raises:
         [Vytree.Empty_path],
