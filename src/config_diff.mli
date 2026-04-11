@@ -70,3 +70,7 @@ val mask_tree : ?exclusive:bool -> Config_tree.t -> Config_tree.t -> Config_tree
 [@@alert exn "Config_diff.Empty_comparison"]
 
 val get_tagged_delete_tree : Config_tree.t -> Config_tree.t
+
+exception Malformed_path of string
+val subtree_from_partial : Reference_tree.t -> Config_tree.t -> Config_tree.t -> string list -> Config_tree.t
+[@@alert exn "Config_diff.Malformed_path"]
