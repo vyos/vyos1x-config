@@ -37,7 +37,3 @@ Canonical side. Twin at `VyOS-Networks/vyos1x-config` is force-pushed by the mir
 - Keep parser changes backwards compatible; existing configs and migration scripts depend on round-trip stability.
 - LICENSE (LGPL-2.1) vs opam (MIT) mismatch is worth resolving before any non-trivial relicensing scenario.
 - `vyconf` (still early-stage per its README) is a fellow OCaml consumer; coordinate API changes with that repo.
-
----
-
-This file is mirrored on Confluence: [`vyos/vyos1x-config`](https://internal.confluence.vyos.com/wiki/spaces/VYOS/pages/817889797). The Confluence page also carries the per-repo audit data (settings, workflows, secret counts, hygiene) that complements this CLAUDE.md. Edit either side; resync via the documentation pipeline.
