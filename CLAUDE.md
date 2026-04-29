@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Project purpose
-Pure-OCaml library that parses, manipulates, and serializes VyOS 1.x and EdgeOS configuration files. The data layer that the rest of the VyOS config stack is built on.
+OCaml library that parses, manipulates, and serializes VyOS 1.x and EdgeOS configuration files. The data layer that the rest of the VyOS config stack is built on.
 
 ## Tech stack
 - OCaml; `dune` 2.0 with `menhir` (parser); `ppx_deriving_yojson`, `yojson` for JSON I/O.
@@ -14,7 +14,7 @@ Pure-OCaml library that parses, manipulates, and serializes VyOS 1.x and EdgeOS 
 - No `dune runtest` suite in tree; coverage comes from `libvyosconfig` and `vyos-1x` smoketests downstream.
 
 ## Repository layout
-- `src/` — OCaml sources (parser via menhir, AST, serializers).
+- `src/` — OCaml sources (parser via menhir, AST, serializers) plus `lexical_numeric_compare.c` (small C helper).
 - `dune-project`, `vyos1x-config.opam` — build/package metadata.
 - `.github/workflows/` — `check-pr-conflicts.yml`, `cla-check.yml`, `pr-mirror-repo-sync.yml` — all delegate to `vyos/.github` reusables.
 
