@@ -9,7 +9,7 @@ OCaml library that parses, manipulates, and serializes VyOS 1.x and EdgeOS confi
 - License: LGPL-2.1 in tree (`LICENSE`); opam declares `MIT` (note the discrepancy if redistributing).
 
 ## Build / test / run
-- Local: `opam install . --deps-only` then `dune build -p vyos1x-config`.
+- Local: `opam install. --deps-only` then `dune build -p vyos1x-config`.
 - Install: `dune install` (or via opam-pin).
 - No `dune runtest` suite in tree; coverage comes from `libvyosconfig` and `vyos-1x` smoketests downstream.
 
