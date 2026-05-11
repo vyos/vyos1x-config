@@ -11,6 +11,11 @@ module type T =
 
 module type FI = functor (M : T) ->
     sig
+        val write_string : M.t -> string
+
+        val read_string : string -> M.t
+        [@@alert exn "Internal.Read_error"]
+
         val write_internal : M.t -> string -> unit
         [@@alert exn "Internal.Write_error"]
 

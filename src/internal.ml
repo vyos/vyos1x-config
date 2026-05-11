@@ -16,6 +16,9 @@ module type T =
 
 module type FI = functor (M: T) ->
     sig
+        val write_string : M.t -> string
+        val read_string : string -> M.t
+        [@@alert exn "Internal.Read_error"]
         val write_internal : M.t -> string -> unit
         [@@alert exn "Internal.Write_error"]
         val write_internal_atomic : M.t -> string -> unit
@@ -27,6 +30,24 @@ module type FI = functor (M: T) ->
     end
 
 module Make : FI = functor (M: T) -> struct
+    let write_string x =
+        let yt = M.to_yojson x in
+        Yojson.Safe.to_string yt
+
+    let read_string s =
+        try
+            let yt = Yojson.Safe.from_string s in
+            let res = M.of_yojson yt in
+            match res with
+            | Error _ -> raise (Read_error "Corrupted string")
+            | Ok r -> r
+        with
+        | Read_error _ as e -> raise e
+        | Yojson.Json_error msg ->
+            raise (Read_error ("Corrupted string: " ^ msg))
+        | exn ->
+            raise (Read_error ("Corrupted string: " ^ Printexc.to_string exn))
+
     let write_internal x file_name =
         let yt = M.to_yojson x in
         let ys = Yojson.Safe.to_string yt in

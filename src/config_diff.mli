@@ -65,8 +65,12 @@ val tree_merge : ?destructive:bool -> Config_tree.t -> Config_tree.t -> Config_t
 [@@alert exn "Tree_alg.Incompatible_union"]
 [@@alert exn "Tree_alg.Nonexistent_child"]
 
-val mask_tree : Config_tree.t -> Config_tree.t -> Config_tree.t
+val mask_tree : ?exclusive:bool -> Config_tree.t -> Config_tree.t -> Config_tree.t
 [@@alert exn "Config_diff.Incommensurable"]
 [@@alert exn "Config_diff.Empty_comparison"]
 
 val get_tagged_delete_tree : Config_tree.t -> Config_tree.t
+
+exception Malformed_path of string
+val subtree_from_partial : Reference_tree.t -> Config_tree.t -> Config_tree.t -> string list -> Config_tree.t
+[@@alert exn "Config_diff.Malformed_path"]
