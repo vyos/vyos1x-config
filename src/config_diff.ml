@@ -729,7 +729,7 @@ let mask_func_inclusive ?recurse:_ (path : string list) (Diff_tree res) (m : cha
     | Updated _ -> Diff_tree (res)
 
 (* mask function; mask applied on right *)
-let mask_func_exclusive ?recurse:_ (path : string list) (Diff_tree res) (m : change) =
+let mask_func_exclusive ?(recurse=true) (path : string list) (Diff_tree res) (m : change) =
     (* alert exn Vytree.delete:
         [Vytree.Empty_path] not possible in pattern match case
         [Vytree.Nonexistent_path] not possible as called on existing config paths (res.left)
@@ -742,9 +742,14 @@ let mask_func_exclusive ?recurse:_ (path : string list) (Diff_tree res) (m : cha
     | Unchanged | Updated _ ->
         begin
             match path with
-            | [] -> Diff_tree(res)
+            | [] ->
+                if recurse then
+                    (* in the diff function, recurse = true on an empty path means that the
+                       trees are equal, hence exclude all: return default (empty) tree *)
+                    Diff_tree {res with left = Config_tree.default}
+                else Diff_tree(res)
             | _ ->
-                if ((Vytree.is_terminal_path[@alert "-exn"]) res.right path) then
+                if recurse || ((Vytree.is_terminal_path[@alert "-exn"]) res.right path) then
                     let tmp = (Vytree.delete[@alert "-exn"]) res.left path in
                     let left' = (Config_tree.prune_delete[@alert "-exn"]) tmp path in
                     Diff_tree {res with left = left'}
@@ -792,19 +797,19 @@ let subtree_from_partial reftree ctree result path =
         | [] -> false
         | _ -> (Vytree.exists[@alert "-exn"]) ctree p
     in
-    let clone_node tree p =
+    let clone_node ?(recurse=false) tree p =
         if (Vytree.exists[@alert "-exn"]) tree p then
             tree
         else
         if not ((Vytree.exists[@alert "-exn"]) ctree p) then
             tree
         else
-            clone ~recurse:false ctree tree p
+            clone ~recurse:recurse ctree tree p
     in
     let clone_children tree p =
         let children = Vytree.list_children ((Vytree.get[@alert "-exn"]) ctree p) in
         let paths = List.map (fun n -> p @ [n]) children in
-        List.fold_left clone_node tree paths
+        List.fold_left (clone_node ~recurse:true) tree paths
     in
     let rec aux acc path_done p =
         if not (check_reftree (path_done @ p)) then
@@ -833,9 +838,7 @@ let subtree_from_partial reftree ctree result path =
                 else
                 (* [h] is a tag_value not present in the config tree *)
                 raise (Malformed_path (Util.string_of_list p'))
-        | _, [] ->
-                if (Config_tree.is_tag[@alert "-exn"]) ctree path_done then clone_children acc path_done
-                else acc
+        | _, [] -> clone_children acc path_done
     in aux result [] path
 
 
