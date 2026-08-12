@@ -1,4 +1,10 @@
-type change = Unchanged | Added | Subtracted | Updated of string list
+type node_data = Config_tree.config_node_data
+type node_cmp = Values | Values_and_comments
+
+type change = | Unchanged
+              | Added
+              | Subtracted
+              | Updated of node_cmp * node_data * node_data
 
 exception Incommensurable
 exception Empty_comparison
@@ -7,9 +13,15 @@ let name_of n = Vytree.name_of_node n
 let data_of n = Vytree.data_of_node n
 let children_of n = Vytree.children_of_node n
 
-let (^~) (node : Config_tree.t) (node' : Config_tree.t) =
-  name_of node = name_of node' &&
-  (data_of node).values <> (data_of node').values
+let apply_cmp cmp (node : Config_tree.t) (node' : Config_tree.t) =
+    match cmp with
+    | Values ->
+        name_of node = name_of node' &&
+        List.sort compare (data_of node).values <> List.sort compare (data_of node').values
+    | Values_and_comments ->
+        name_of node = name_of node' &&
+        (List.sort compare (data_of node).values <> List.sort compare (data_of node').values ||
+        (data_of node).comment <> (data_of node').comment)
 
 let left_opt_pairs n m =
     (children_of n) |> List.map (fun x ->
@@ -52,23 +64,39 @@ let update_path path left_opt right_opt =
 module type Place = sig
     type t
     val diff_func : ?descent:bool -> string list -> t -> change -> t
+    val diff_comments : t -> bool
 end
 
 module Diff (P: Place) = struct
-    let rec diff_calc (path : string list) (res: P.t) ((left_node_opt, right_node_opt) : Config_tree.t option * Config_tree.t option) =
-        let path = update_path path left_node_opt right_node_opt in
-        match left_node_opt, right_node_opt with
-        | None, None -> raise Empty_comparison
-        | Some _, None -> P.diff_func path res Subtracted
-        | None, Some _ -> P.diff_func path res Added
-        | Some left_node, Some right_node when left_node = right_node ->
-            P.diff_func ~descent:true path res Unchanged
-        | Some left_node, Some right_node when left_node ^~ right_node ->
-            let values = (data_of right_node).values in
-            P.diff_func path res (Updated values)
-        | Some left_node, Some right_node ->
-            let ret = P.diff_func ~descent:false path res Unchanged in
-            List.fold_left (diff_calc path) ret (opt_zip left_node right_node)
+    let diff_calc (path' : string list) (res' : P.t) ((left_node_opt', right_node_opt') : Config_tree.t option * Config_tree.t option) =
+        let cmp =
+            if not (P.diff_comments res') then Values
+            else Values_and_comments
+        in
+        let rec diff_calc_rec (path : string list) (res: P.t) (left_node_opt, right_node_opt) =
+            let path = update_path path left_node_opt right_node_opt in
+            match left_node_opt, right_node_opt with
+            | None, None -> raise Empty_comparison
+            | Some _, None ->
+                P.diff_func ~descent:true path res Subtracted
+
+            | None, Some _ ->
+                P.diff_func ~descent:true path res Added
+
+            | Some left_node, Some right_node when left_node = right_node ->
+                P.diff_func ~descent:true path res Unchanged
+
+            | Some left_node, Some right_node when apply_cmp cmp left_node right_node ->
+                let ldata = data_of left_node in
+                let rdata = data_of right_node in
+                let ret = P.diff_func ~descent:false path res (Updated (cmp, ldata, rdata)) in
+                List.fold_left (diff_calc_rec path) ret (opt_zip left_node right_node)
+
+            | Some left_node, Some right_node ->
+                let ret = P.diff_func ~descent:false path res Unchanged in
+                List.fold_left (diff_calc_rec path) ret (opt_zip left_node right_node)
+        in
+        diff_calc_rec path' res' (left_node_opt', right_node_opt')
 
     let diff (init: P.t) l r = diff_calc [] init (Option.some l, Option.some r)
 end
