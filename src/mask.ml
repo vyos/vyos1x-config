@@ -10,7 +10,7 @@ module Mask_inclusive = struct
                         }
 
     (* mask function; mask applied on right *)
-    let diff_func ?recurse:_ (path : string list) res (m : change) =
+    let diff_func ?descent:_ (path : string list) res (m : change) =
         (* alert exn Vytree.delete:
             [Vytree.Empty_path] not possible since Unchanged pattern is only empty path
             [Vytree.Nonexistent_path] not possible as called on existing config paths (res.left)
@@ -43,7 +43,7 @@ module Mask_exclusive = struct
                         }
 
     (* mask function; mask applied on right *)
-    let diff_func ?(recurse=true) (path : string list) res (m : change) =
+    let diff_func ?(descent=true) (path : string list) res (m : change) =
         (* alert exn Vytree.delete:
             [Vytree.Empty_path] not possible in pattern match case
             [Vytree.Nonexistent_path] not possible as called on existing config paths (res.left)
@@ -57,13 +57,13 @@ module Mask_exclusive = struct
             begin
                 match path with
                 | [] ->
-                    if recurse then
-                        (* in the diff function, recurse = true on an empty path means that the
+                    if descent then
+                        (* in the diff function, descent = true on an empty path means that the
                            trees are equal, hence exclude all: return default (empty) tree *)
                         {res with left = Config_tree.default}
                     else res
                 | _ ->
-                    if recurse || ((Vytree.is_terminal_path[@alert "-exn"]) res.right path) then
+                    if descent || ((Vytree.is_terminal_path[@alert "-exn"]) res.right path) then
                         let tmp = (Vytree.delete[@alert "-exn"]) res.left path in
                         let left' = (Config_tree.prune_delete[@alert "-exn"]) tmp path in
                         {res with left = left'}

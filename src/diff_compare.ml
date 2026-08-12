@@ -64,7 +64,7 @@ module Diff_compare = struct
                                cmds = cmds;
                              }
 
-    let diff_func ?recurse:_ (path : string list) res (m : change) =
+    let diff_func ?descent:_ (path : string list) res (m : change) =
         (* raises no exception:
             clone will always be called on extant path of left or right
            alert exn Vytree.get_values:
@@ -132,7 +132,7 @@ end
 module D = Diff(Diff_compare)
 
 let add_empty_path src_node dest_node path =
-    (Config_tree.clone[@alert "-exn"]) ~recurse:false ~set_values:(Some []) src_node dest_node path
+    (Config_tree.clone[@alert "-exn"]) ~descent:false ~set_values:(Some []) src_node dest_node path
 
 let compare_at_path_maybe_empty left right path =
     let left =

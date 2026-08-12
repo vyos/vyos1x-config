@@ -89,7 +89,7 @@ val get_subtree : ?with_node:bool -> t -> string list -> t
 
 val value_paths_of_tree : t -> string list list
 
-val clone : ?recurse:bool -> ?set_values:string list option -> t -> t -> string list -> t
+val clone : ?descent:bool -> ?set_values:string list option -> t -> t -> string list -> t
 [@@alert exn "Vytree.Nonexistent_path"]
 
 val render_commands : ?op:command -> t -> string list -> string

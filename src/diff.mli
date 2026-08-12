@@ -5,7 +5,7 @@ exception Empty_comparison
 
 module type Place = sig
     type t
-    val diff_func : ?recurse:bool -> string list -> t -> change -> t
+    val diff_func : ?descent:bool -> string list -> t -> change -> t
 end
 
 module Diff : functor (P: Place) -> sig

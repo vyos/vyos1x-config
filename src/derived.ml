@@ -21,19 +21,19 @@ let subtree_from_partial reftree ctree result path =
         | [] -> false
         | _ -> (Vytree.exists[@alert "-exn"]) ctree p
     in
-    let clone_node ?(recurse=false) tree p =
+    let clone_node ?(descent=false) tree p =
         if (Vytree.exists[@alert "-exn"]) tree p then
             tree
         else
         if not ((Vytree.exists[@alert "-exn"]) ctree p) then
             tree
         else
-            (Config_tree.clone[@alert "-exn"]) ~recurse:recurse ctree tree p
+            (Config_tree.clone[@alert "-exn"]) ~descent:descent ctree tree p
     in
     let clone_children tree p =
         let children = Vytree.list_children ((Vytree.get[@alert "-exn"]) ctree p) in
         let paths = List.map (fun n -> p @ [n]) children in
-        List.fold_left (clone_node ~recurse:true) tree paths
+        List.fold_left (clone_node ~descent:true) tree paths
     in
     let rec aux acc path_done p =
         if not (check_reftree (path_done @ p)) then

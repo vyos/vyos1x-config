@@ -19,7 +19,7 @@ module Diff_tree = struct
                             inter = Config_tree.default;
                           }
 
-    let diff_func ?(recurse=true) (path : string list) res (m : change) =
+    let diff_func ?(descent=true) (path : string list) res (m : change) =
         (* raises no exception:
             clone will always be called on extant path of left or right
            alert exn Vytree.get_values:
@@ -30,9 +30,9 @@ module Diff_tree = struct
         | Added -> {res with add = (Config_tree.clone[@alert "-exn"]) res.right res.add path; }
         | Subtracted ->
             {res with sub = (Config_tree.clone[@alert "-exn"]) res.left res.sub path;
-             del = (Config_tree.clone[@alert "-exn"]) ~recurse:false ~set_values:(Some []) res.left res.del path; }
+             del = (Config_tree.clone[@alert "-exn"]) ~descent:false ~set_values:(Some []) res.left res.del path; }
         | Unchanged ->
-            {res with inter = (Config_tree.clone[@alert "-exn"]) ~recurse:recurse res.left res.inter path; }
+            {res with inter = (Config_tree.clone[@alert "-exn"]) ~descent:descent res.left res.inter path; }
         | Updated v ->
                 (* if in this case, node at path is guaranteed to exist *)
                 let ov = (Config_tree.get_values[@alert "-exn"]) res.left path in
