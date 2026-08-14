@@ -26,6 +26,13 @@ let default = Vytree.make default_data ""
 
 let make name = Vytree.make default_data name
 
+module ValueOrd = struct
+    type t = string
+    let compare a b =
+        Util.lexical_numeric_compare a b
+end
+module ValueS = Set.Make(ValueOrd)
+
 let op_to_string op =
     match op with
     | Set -> "set"
@@ -304,6 +311,52 @@ let prune_delete node path =
         | true -> delete node tag_path None
         | false -> node
     else node
+
+(* copy node paths between trees *)
+let rec clone_path ?(recurse=true) ?(set_values=None) old_root new_root path_done path_remaining =
+    (* raises:
+        [Vytree.Nonexistent_path]
+       alert exn Vytree.get:
+        [Vytree.Empty_path] not possible as clone_path called by clone with non-empty path
+        [Vytree.Nonexistent_path] allow raise
+       alert exn Vytree.insert:
+        [Vytree.Empty_path] not possible as clone_path called by clone with non-empty path
+        [Not_found] not possible for postion=Lexical
+        [Vytree.Duplicate_child] not possible as calls are on path complement
+        [Vytree.Insert_error] not possible as calls are on path_existing @ [name]
+     *)
+    match path_remaining with
+    | [] | [_] ->
+        let path_total = path_done @ path_remaining in
+        let old_node = (Vytree.get[@alert "-exn"]) old_root path_total in
+        let data =
+            match set_values with
+            | Some v -> { (Vytree.data_of_node old_node) with values = v }
+            | None -> Vytree.data_of_node old_node
+        in
+        if recurse then
+            let children' = Vytree.children_of_node old_node in
+            (Vytree.insert[@alert "-exn"]) ~position:Lexical ~children:children' new_root path_total data
+        else
+            (Vytree.insert[@alert "-exn"]) ~position:Lexical new_root path_total data
+    | name :: names ->
+        let path_done = path_done @ [name] in
+        let old_node = (Vytree.get[@alert "-exn"]) old_root path_done in
+        let new_root =
+            (Vytree.insert[@alert "-exn"]) ~position:Lexical new_root path_done (Vytree.data_of_node old_node)
+        in
+        clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_done names
+
+let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
+    (* raises:
+        [Vytree.Nonexistent_path] from clone_path
+     *)
+    match path with
+    | [] -> if recurse then old_root else new_root
+    | _ ->
+            let path_existing = Vytree.get_existent_path new_root path in
+            let path_remaining = Vylist.complement path path_existing in
+            clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_existing path_remaining
 
 
 module Renderer =

@@ -21,6 +21,8 @@ val default : t
 
 val make : string -> t
 
+module ValueS : Set.S with type elt = string
+
 val create_node : t -> string list -> t
 [@@alert exn "Vytree.Empty_path"]
 [@@alert exn "Config_tree.Useless_set"]
@@ -86,6 +88,9 @@ val is_leaf : t -> string list -> bool
 val get_subtree : ?with_node:bool -> t -> string list -> t
 
 val value_paths_of_tree : t -> string list list
+
+val clone : ?recurse:bool -> ?set_values:string list option -> t -> t -> string list -> t
+[@@alert exn "Vytree.Nonexistent_path"]
 
 val render_commands : ?op:command -> t -> string list -> string
 [@@alert exn "Vytree.Nonexistent_path"]
