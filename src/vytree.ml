@@ -315,7 +315,7 @@ let fold_tree_with_path f (p', a) t =
     to fold_tree_with_path.
  *)
 
-let fold_tree_with_path_and_list f ((p', v), a) t =
+let fold_tree_with_path_and_stack f ((p', v), a) t =
     let rec fold_func f ((p', v), a) t =
     let p =
         match name_of_node t with

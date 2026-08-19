@@ -97,4 +97,4 @@ val is_terminal_path : 'a t -> string list -> bool
 
 val fold_tree_with_path: (string list * 'acc -> 'b t -> string list * 'acc) -> string list * 'acc -> 'b t -> 'acc
 
-val fold_tree_with_path_and_list: ((string list * 'a list) * 'acc -> 'b t -> (string list * 'a list) * 'acc) -> (string list * 'a list) * 'acc -> 'b t -> 'acc
+val fold_tree_with_path_and_stack: ((string list * 'a list) * 'acc -> 'b t -> (string list * 'a list) * 'acc) -> (string list * 'a list) * 'acc -> 'b t -> 'acc
