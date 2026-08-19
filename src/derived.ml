@@ -2,7 +2,7 @@
    returning a subtree of matches *)
 exception Malformed_path of string
 
-let subtree_from_partial reftree ctree result path =
+let subtree_from_partial ?(descent=true) reftree ctree result path =
     if Util.is_empty path then result
     else
     let check_reftree p =
@@ -62,5 +62,9 @@ let subtree_from_partial reftree ctree result path =
                 else
                 (* [h] is a tag_value not present in the config tree *)
                 raise (Malformed_path (Util.string_of_list p'))
-        | _, [] -> clone_children acc path_done
+        | _, [] ->
+            if descent then
+                clone_children acc path_done
+            else
+                acc
     in aux result [] path
