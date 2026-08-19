@@ -23,6 +23,11 @@ type docs = {
     hints: doc_hints list;
 } [@@deriving to_yojson]
 
+type dependency_type = {
+    kind: string;
+    alert: string;
+} [@@deriving yojson]
+
 type ref_node_data = {
     node_type: node_type;
     constraints: Value_checker.value_constraint list;
@@ -39,6 +44,8 @@ type ref_node_data = {
     default_value: string option;
     hidden: bool;
     secret: bool;
+    kind: string list;
+    dependency: dependency_type option;
     docs: docs;
 } [@@deriving yojson]
 

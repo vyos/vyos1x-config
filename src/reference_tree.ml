@@ -45,6 +45,11 @@ type docs = {
     hints: doc_hints list;
 } [@@deriving yojson]
 
+type dependency_type = {
+    kind: string;
+    alert: string;
+} [@@deriving yojson]
+
 type ref_node_data = {
     node_type: node_type;
     constraints: Value_checker.value_constraint list;
@@ -61,6 +66,8 @@ type ref_node_data = {
     default_value: string option;
     hidden: bool;
     secret: bool;
+    kind: string list;
+    dependency: dependency_type option;
     docs: docs;
 } [@@deriving yojson]
 
@@ -86,6 +93,8 @@ let default_data = {
     default_value = None;
     hidden = false;
     secret = false;
+    kind = [];
+    dependency = None;
     docs = {
         headline = "";
         text = "";
@@ -219,6 +228,12 @@ let load_docs_from_xml d x =
         | _ -> d  (* Ignore unknown elements instead of raising an error *)
     in Xml.fold aux d x
 
+let load_dependency_from_xml d x =
+    try
+        let k, a = Xml.attrib x "kind", Xml.attrib x "alert" in
+        {d with dependency=Some { kind=k; alert=a }}
+    with _ -> {d with dependency=None}
+
 let data_from_xml d x =
     let aux d x =
         match x with
@@ -237,6 +252,8 @@ let data_from_xml d x =
             {d with priority=Some i}
         | Xml.Element ("hidden", _, _) -> {d with hidden=true}
         | Xml.Element ("secret", _, _) -> {d with secret=true}
+        | Xml.Element ("kind", _, [Xml.PCData k]) -> {d with kind=k::d.kind}
+        | Xml.Element ("dependency", _, _) -> load_dependency_from_xml d x
         | Xml.Element ("docs", _, _) -> load_docs_from_xml d x
         | _ -> raise (Bad_interface_definition ("Malformed property tag: " ^ Xml.to_string x))
     in Xml.fold aux d x
