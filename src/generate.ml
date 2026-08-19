@@ -14,8 +14,15 @@ let load_interface_definitions dir =
     let relative_paths =
       List.filter (fun x -> Filename.extension x = ".xml") dir_paths
     in
+    let compar x y =
+        (* reverse order so as not to List.rev for fold_left below *)
+        String.compare (FilePath.basename y) (FilePath.basename x)
+    in
+    let sort_paths =
+        List.sort compar relative_paths
+    in
     let absolute_paths =
-        try Ok (List.map Util.absolute_path relative_paths)
+        try Ok (List.map Util.absolute_path sort_paths)
         with Sys_error no_dir_msg -> Error no_dir_msg
     in
     let load_aux tree file =
