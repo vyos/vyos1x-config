@@ -92,6 +92,7 @@ val move : 'a t -> string list -> position -> 'a t
 [@@alert exn "Not_found possible if position Before/After"]
 [@@alert exn "Vytree.Insert_error"]
 
+val is_terminal_node : 'a t -> bool
 val is_terminal_path : 'a t -> string list -> bool
 [@@alert exn "Vytree.Empty_path"]
 
