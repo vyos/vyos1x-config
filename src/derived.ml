@@ -75,3 +75,31 @@ let subtree_from_partial ?(descent=true) reftree ctree result path =
             else
                 acc
     in aux result [] path
+
+
+let subtree_values_of_path rt ct path =
+    (* raises:
+        [Malformed_path] from subtree_from_partial
+     *)
+    let subtree = subtree_from_partial ~descent:false rt ct Config_tree.default path
+    in
+    if Util.is_empty path || subtree = Config_tree.default then
+        [([], [])]
+    else
+    let func (p, (acc, ct')) ft =
+        let path = List.rev p in
+        if Vytree.is_terminal_node ft then
+            let node = (Vytree.get[@alert "-exn"]) (ct': Config_tree.t) path in
+            let data = Vytree.data_of_node node in
+            let acc' =
+                if data.tag then ((Vytree.list_children node, path) :: acc)
+                else
+                if data.leaf then ((data.values, path) :: acc)
+                else acc
+            in (p, (acc', ct'))
+        else (p, (acc, ct'))
+    in fst (Vytree.fold_tree_with_path func ([], ([], ct)) subtree)
+
+let subtree_values_of_path_yojson rt ct path =
+    let ret = subtree_values_of_path rt ct path in
+    [%to_yojson: (string list * string list) list] ret |> Yojson.Safe.to_string
