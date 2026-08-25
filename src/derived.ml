@@ -21,6 +21,10 @@ let subtree_from_partial ?(descent=true) reftree ctree result path =
         | [] -> false
         | _ -> (Vytree.exists[@alert "-exn"]) ctree p
     in
+    let spurious_value p =
+        Reference_tree.refpath_from_partial reftree p =
+        Reference_tree.refpath_from_partial reftree (Util.drop_last p)
+    in
     let clone_node ?(descent=false) tree p =
         if (Vytree.exists[@alert "-exn"]) tree p then
             tree
@@ -48,19 +52,22 @@ let subtree_from_partial ?(descent=true) reftree ctree result path =
                 let p' = path_done @ [h] in
                 if check_ctree p' then aux (clone_node acc p') p' tl
                 else
-                    if (Config_tree.is_tag[@alert "-exn"]) ctree path_done then
-                    let children =
-                        Vytree.list_children ((Vytree.get[@alert "-exn"]) ctree path_done)
-                    in
-                    let func accum child =
-                        let path = path_done @ [child] @ [h] in
-                        if check_ctree path then
-                            aux (clone_node accum path) path tl
-                        else accum
-                    in
-                    List.fold_left func acc children
+                if (Config_tree.is_tag[@alert "-exn"]) ctree path_done &&
+                not (spurious_value p')
+                then
+                let children =
+                    Vytree.list_children ((Vytree.get[@alert "-exn"]) ctree path_done)
+                in
+                let func accum child =
+                    let path = path_done @ [child] @ [h] in
+                    if check_ctree path then
+                        aux (clone_node accum path) path tl
+                    else accum
+                in
+                List.fold_left func acc children
                 else
-                (* [h] is a tag_value not present in the config tree *)
+                (* [h] is a tag_value not present in the config tree
+                   (non-tag path_done not, in fact, reachable here) *)
                 raise (Malformed_path (Util.string_of_list p'))
         | _, [] ->
             if descent then
