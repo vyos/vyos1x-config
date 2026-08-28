@@ -39,42 +39,49 @@ let subtree_from_partial ?(descent=true) reftree ctree result path =
         let paths = List.map (fun n -> p @ [n]) children in
         List.fold_left (clone_node ~descent:true) tree paths
     in
-    let rec aux acc path_done p =
-        if not (check_reftree (path_done @ p)) then
-            raise (Malformed_path (Util.string_of_list (path_done @ p)))
-        else
-        match path_done, p with
-        | [], h :: tl ->
-                if check_reftree [h] then aux (clone_node acc [h]) [h] tl
-                else
-                raise (Malformed_path (Util.string_of_list p))
-        | _, h :: tl ->
-                let p' = path_done @ [h] in
-                if check_ctree p' then aux (clone_node acc p') p' tl
-                else
-                if (Config_tree.is_tag[@alert "-exn"]) ctree path_done &&
-                not (spurious_value p')
-                then
-                let children =
-                    Vytree.list_children ((Vytree.get[@alert "-exn"]) ctree path_done)
-                in
-                let func accum child =
-                    let path = path_done @ [child] @ [h] in
-                    if check_ctree path then
-                        aux (clone_node accum path) path tl
-                    else accum
-                in
-                List.fold_left func acc children
-                else
-                (* [h] is a tag_value not present in the config tree
-                   (non-tag path_done not, in fact, reachable here) *)
-                raise (Malformed_path (Util.string_of_list p'))
-        | _, [] ->
-            if descent then
-                clone_children acc path_done
+    let (complete, res) =
+        let rec aux (tail, acc) path_done p =
+            if not (check_reftree (path_done @ p)) then
+                raise (Malformed_path (Util.string_of_list (path_done @ p)))
             else
-                acc
-    in aux result [] path
+            match path_done, p with
+            | [], h :: tl ->
+                    if check_ctree [h] then aux (tail, (clone_node acc [h])) [h] tl
+                    else (false, result)
+            | _, h :: tl ->
+                    let p' = path_done @ [h] in
+                    (* case: path_done @ [h] exists in config tree *)
+                    if check_ctree p' then aux (tail, (clone_node acc p')) p' tl
+                    else
+                    (* case: path_done @ [h] is not a tag value, but is not set in config tree *)
+                    if not ((Config_tree.is_tag[@alert "-exn"]) ctree path_done)
+                    then (tail, acc)
+                    else
+                    (* case: path_done is tag node, [h] is not a false tag value *)
+                    if not (spurious_value p')
+                    then
+                    let children =
+                        Vytree.list_children ((Vytree.get[@alert "-exn"]) ctree path_done)
+                    in
+                    let func (tail', accum) child =
+                        let path = path_done @ [child] @ [h] in
+                        if check_ctree path then
+                            aux (tail', (clone_node accum path)) path tl
+                        else (tail', accum)
+                    in
+                    List.fold_left func (tail, acc) children
+                    else
+                    (* case: [h] is a tag_value not present in the config tree *)
+                    raise (Malformed_path (Util.string_of_list p'))
+            | _, [] ->
+                if descent then
+                    (true, clone_children acc path_done)
+                else
+                    (true, acc)
+        in aux (false, result) [] path
+    in match complete, res with
+    | true, tree -> tree
+    | false, __ -> result
 
 
 let subtree_values_of_path rt ct path =
