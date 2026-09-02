@@ -313,7 +313,7 @@ let prune_delete node path =
     else node
 
 (* copy node paths between trees *)
-let rec clone_path ?(recurse=true) ?(set_values=None) old_root new_root path_done path_remaining =
+let rec clone_path ?(descent=true) ?(set_values=None) old_root new_root path_done path_remaining =
     (* raises:
         [Vytree.Nonexistent_path]
        alert exn Vytree.get:
@@ -334,7 +334,7 @@ let rec clone_path ?(recurse=true) ?(set_values=None) old_root new_root path_don
             | Some v -> { (Vytree.data_of_node old_node) with values = v }
             | None -> Vytree.data_of_node old_node
         in
-        if recurse then
+        if descent then
             let children' = Vytree.children_of_node old_node in
             (Vytree.insert[@alert "-exn"]) ~position:Lexical ~children:children' new_root path_total data
         else
@@ -345,18 +345,18 @@ let rec clone_path ?(recurse=true) ?(set_values=None) old_root new_root path_don
         let new_root =
             (Vytree.insert[@alert "-exn"]) ~position:Lexical new_root path_done (Vytree.data_of_node old_node)
         in
-        clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_done names
+        clone_path ~descent:descent ~set_values:set_values old_root new_root path_done names
 
-let clone ?(recurse=true) ?(set_values=None) old_root new_root path =
+let clone ?(descent=true) ?(set_values=None) old_root new_root path =
     (* raises:
         [Vytree.Nonexistent_path] from clone_path
      *)
     match path with
-    | [] -> if recurse then old_root else new_root
+    | [] -> if descent then old_root else new_root
     | _ ->
             let path_existing = Vytree.get_existent_path new_root path in
             let path_remaining = Vylist.complement path path_existing in
-            clone_path ~recurse:recurse ~set_values:set_values old_root new_root path_existing path_remaining
+            clone_path ~descent:descent ~set_values:set_values old_root new_root path_existing path_remaining
 
 
 module Renderer =

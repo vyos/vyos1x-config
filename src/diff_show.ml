@@ -88,7 +88,7 @@ module Diff_show = struct
                                 }
 
 
-    let diff_func ?(recurse=true) (path : string list) res (m : change) =
+    let diff_func ?(descent=true) (path : string list) res (m : change) =
         (* alert exn Vytree.get, Reference_tree.refpath, Config_tree.get_values,
            Reference_tree.is_multi, Config_tree.is_tag_value:
             [Vytree.Empty_path] checked at only point possible (Unchanged)
@@ -138,7 +138,7 @@ module Diff_show = struct
             {res with config_diff = rev_diff; open_blocks = rev_blocks;}
         | Unchanged ->
             begin
-            match recurse with
+            match descent with
             | false ->
                 let rendered = render_level_open indent res.left path in
                 let rev_diff = diff_str ^ annotate_rendered m rendered in
@@ -238,5 +238,5 @@ let diff_show rt path left right =
         let init = Diff_show.make_init left right rt path in
         let ret = D.diff init left right in
         (* close final braces *)
-        let res = Diff_show.diff_func ~recurse:false [] ret Unchanged in
+        let res = Diff_show.diff_func ~descent:false [] ret Unchanged in
         res.config_diff

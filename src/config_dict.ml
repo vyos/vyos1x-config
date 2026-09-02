@@ -61,7 +61,7 @@ let tree_with_defaults ?(with_first_node=true) ref_tree config_tree mask path =
                 end
             | _ -> ((p, cont::c), acc)
         in
-        Vytree.fold_tree_with_path_and_list ref_tree_walk (([], []), ct) relative_ref_tree
+        Vytree.fold_tree_with_path_and_stack ref_tree_walk (([], []), ct) relative_ref_tree
     in
     let config_tree_walk (p, acc) ct =
         let (data: Config_tree.config_node_data) = Vytree.data_of_node ct in

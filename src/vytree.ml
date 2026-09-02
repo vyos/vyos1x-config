@@ -281,15 +281,18 @@ let move node path position =
     let node = delete node path in
     insert ~position:position ~children:child.children node path child.data
 
+let is_terminal_node node =
+    match (children_of_node node) with
+    | [] -> true
+    | _ -> false
+
 let is_terminal_path node path =
     (* raises
         [Empty_path] from get
      *)
     try
         let n = get node path in
-        match (children_of_node n) with
-        | [] -> true
-        | _ -> false
+        is_terminal_node n
     with Nonexistent_path -> false
 
 let fold_tree_with_path f (p', a) t =
@@ -315,7 +318,7 @@ let fold_tree_with_path f (p', a) t =
     to fold_tree_with_path.
  *)
 
-let fold_tree_with_path_and_list f ((p', v), a) t =
+let fold_tree_with_path_and_stack f ((p', v), a) t =
     let rec fold_func f ((p', v), a) t =
     let p =
         match name_of_node t with
