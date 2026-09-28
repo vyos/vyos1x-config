@@ -131,3 +131,10 @@ let get_path_owner reftree path =
     let func data = data.owner in
     (get_ceil_data[@alert "-exn"]) func reftree path
 
+let get_refpath_from_config_path reftree path =
+    let p = refpath reftree path in
+    [%to_yojson: string list] p |> Yojson.Safe.to_string
+
+let get_refpath_from_partial_path reftree path =
+    let p = refpath_from_partial reftree path in
+    [%to_yojson: string list] p |> Yojson.Safe.to_string
