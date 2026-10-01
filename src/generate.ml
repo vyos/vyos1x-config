@@ -125,7 +125,7 @@ let merge_reference_tree_cache cache_dir primary_name result_name =
             (FilePath.concat cache_dir result_name)
         with Internal.Write_error msg -> raise (Write_error msg)
 
-let reference_tree_to_json ?(internal_cache="") from_dir to_file =
+let reference_tree_to_json ?(internal_cache="") ?(exclude_paths="[]") from_dir to_file =
     (* raises:
         [Load_error]
         [Write_error]
@@ -140,7 +140,16 @@ let reference_tree_to_json ?(internal_cache="") from_dir to_file =
         | Ok ref -> ref
         | Error msg -> raise (Load_error msg)
     in
-    let out = Reference_tree.render_json ref_tree in
+    let exclude_paths = Util.path_list_from_yojson exclude_paths in
+    let remove_path rt p =
+        if not (Util.is_empty p) && (Vytree.exists[@alert "-exn"]) rt p then
+            (Vytree.delete[@alert "-exn"]) rt p
+        else rt
+    in
+    let ref_tree' =
+        List.fold_left remove_path ref_tree exclude_paths
+    in
+    let out = Reference_tree.render_json ref_tree' in
     let oc =
         try
             open_out to_file
@@ -152,5 +161,5 @@ let reference_tree_to_json ?(internal_cache="") from_dir to_file =
     | "" -> ()
     | _ ->
         try
-            (I.write_internal[@alert "-exn"]) ref_tree internal_cache
+            (I.write_internal[@alert "-exn"]) ref_tree' internal_cache
         with Internal.Write_error msg -> raise (Write_error msg)

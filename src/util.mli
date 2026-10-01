@@ -42,3 +42,5 @@ val flag : 'a list -> 'a list list
 exception End_of_read of in_channel
 
 val file_compare : ?ignore_line_prefix:string -> string -> string -> bool
+
+val path_list_from_yojson : string -> string list list

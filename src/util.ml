@@ -228,3 +228,11 @@ let file_compare ?(ignore_line_prefix="") file1 file2 =
     | Some ic1, None -> close_in ic1; false
     | None, Some ic2 -> close_in ic2; false
     | None, None -> false
+
+let path_list_from_yojson s =
+    try
+        match [%of_yojson: string list list] (Yojson.Safe.from_string s) with
+        | Ok r -> r
+        | Error _ -> []
+    with
+    | Yojson.Json_error _ | Failure _ -> []

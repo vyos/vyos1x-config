@@ -3,7 +3,7 @@ exception Write_error of string
 
 val load_interface_definitions : string -> (Reference_tree.t, string) result
 
-val reference_tree_to_json : ?internal_cache:string -> string -> string -> unit
+val reference_tree_to_json : ?internal_cache:string -> ?exclude_paths:string -> string -> string -> unit
 [@@alert exn "Generate.Load_error"]
 [@@alert exn "Generate.Write_error"]
 
