@@ -14,3 +14,6 @@ val get_rdeps_of_kind_yojson : ?tag_value_placeholder:string -> t -> string -> s
 val get_rdeps_of_kind_data_yojson : ?tag_value_placeholder:string -> t -> string -> string
 
 val get_path_owner : t -> string list -> string option
+
+val get_refpath_from_config_path : t -> string list -> string
+val get_refpath_from_partial_path : t -> string list -> string
