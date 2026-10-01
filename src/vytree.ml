@@ -130,11 +130,17 @@ let insert_maybe ?(position=Default) node path data =
     with Duplicate_child -> node
 
 let sorted_children_of_node cmp node =
-    (* raises no exn, as find_or_fail cannot fail
+    (* Map the sorted names back to nodes through a table rather than a
+       linear search per name, which made this quadratic in the number of
+       children. A duplicated name maps to its first node, as before.
      *)
+    let first = Hashtbl.create (List.length node.children) in
+    List.iter
+        (fun c -> if not (Hashtbl.mem first c.name) then Hashtbl.add first c.name c)
+        node.children;
     let names = list_children node in
     let names = List.sort cmp names in
-    List.map (find_or_fail node) names
+    List.map (Hashtbl.find first) names
 
 let sort_children cmp node =
     {node with children = (sorted_children_of_node cmp node)}
@@ -155,17 +161,23 @@ let merge_children merge_data cmp node =
        have the same name as N and merge their children into N, sorting
        children by a comparison function cmp (string -> string -> int) on
        node names *)
-    let rec merge_into n ns =
-        match ns with
-        | [] -> n
-        | n' :: ns' ->
-            if n.name = n'.name then
-                let children = List.append n.children n'.children in
-                let data = merge_data n.data n'.data in
-                let n = {n with children=children; data=data} in
-                let n = sort_children cmp n in
-                merge_into n ns'
-            else merge_into n ns'
+    (* Collect the children of every same-named node, then concatenate and
+       sort once: appending and re-sorting after each merge made parsing
+       cubic in the number of same-named siblings, e.g. the entries of one
+       "rule" tag node, and sorting once gives the same tree *)
+    let merge_into n ns =
+        let rec collect data acc merged ns =
+            match ns with
+            | [] -> (data, acc, merged)
+            | n' :: ns' ->
+                if n.name = n'.name then
+                    collect (merge_data data n'.data) (n'.children :: acc) true ns'
+                else collect data acc merged ns'
+        in
+        let data, acc, merged = collect n.data [n.children] false ns in
+        if merged then
+            sort_children cmp {n with children=(List.concat (List.rev acc)); data=data}
+        else n
     in
     (* Given a list of nodes, for every node, find subsequent children with
        the same name and merge them into the first node, then delete remaining
