@@ -166,18 +166,26 @@ let merge_children merge_data cmp node =
        cubic in the number of same-named siblings, e.g. the entries of one
        "rule" tag node, and sorting once gives the same tree *)
     let merge_into n ns =
-        let rec collect data acc merged ns =
+        let rec collect datas acc ns =
             match ns with
-            | [] -> (data, acc, merged)
+            | [] -> (datas, acc)
             | n' :: ns' ->
                 if n.name = n'.name then
-                    collect (merge_data data n'.data) (n'.children :: acc) true ns'
-                else collect data acc merged ns'
+                    collect (n'.data :: datas) (n'.children :: acc) ns'
+                else collect datas acc ns'
         in
-        let data, acc, merged = collect n.data [n.children] false ns in
-        if merged then
+        (* Merge the data from the right, last node first: merging from the
+           left copied the growing value list once per node, which made a
+           multi-value leaf quadratic in its number of values. Folding the
+           reversed list from the left keeps it tail-recursive, and the
+           result is the same for an associative merge_data like the
+           parser's (the first node's fields, then all values in order) *)
+        match collect [] [n.children] ns with
+        | [], _ -> n
+        | last :: datas, acc ->
+            let data = List.fold_left (fun r l -> merge_data l r) last datas in
+            let data = merge_data n.data data in
             sort_children cmp {n with children=(List.concat (List.rev acc)); data=data}
-        else n
     in
     (* Given a list of nodes, for every node, find subsequent children with
        the same name and merge them into the first node, then delete remaining
