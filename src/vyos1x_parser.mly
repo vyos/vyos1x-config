@@ -7,15 +7,16 @@
        any of them have duplicate children inside,
        e.g. "interfaces { ethernet eth0 {...} ethernet eth0 {...} }" *)
     let find_duplicate_children n =
+        (* sort once and compare neighbours: sorting again on every step
+           made this quadratic in the number of children *)
         let rec aux xs =
-            let xs = List.sort compare xs in
             match xs with
             | [] | [_] -> ()
-            | x :: x' :: xs ->
+            | x :: (x' :: _ as rest) ->
                 if x = x' then raise (Duplicate_child (Vytree.name_of_node n, x))
-                else aux (x' :: xs)
+                else aux rest
         in
-        aux @@ Vytree.list_children n
+        aux @@ List.sort compare (Vytree.list_children n)
 
     (* When merging nodes with values, append values of subsequent nodes to the
        first one *)
