@@ -838,7 +838,7 @@ let get_ceil_data f reftree path =
         match acc, p with
         | _, h :: tl ->
                 let acc' = acc @ [h] in
-                aux (data_of_path d (refpath reftree acc')) acc' tl
+                aux (data_of_path d acc') acc' tl
         | _, [] -> d
     in aux None [] path
 
