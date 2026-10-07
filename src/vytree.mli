@@ -43,6 +43,9 @@ val insert_multi_level : ?position:position -> 'a -> 'a t -> string list -> stri
 [@@alert exn "Vytree.Duplicate_child possible if path_remaining not complement"]
 [@@alert exn "Vytree.Insert_error possible if path_done existence not guaranteed"]
 
+(* Merges the children with the same name into the first of them. merge_data
+   must be associative: it is applied from the right, as
+   merge_data d1 (merge_data d2 (... (merge_data dn-1 dn))) *)
 val merge_children : ('a -> 'a -> 'a) -> (string -> string -> int) -> 'a t -> 'a t
 
 val delete : 'a t -> string list -> 'a t
