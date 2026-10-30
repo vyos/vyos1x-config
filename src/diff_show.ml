@@ -155,7 +155,15 @@ module Diff_show = struct
                     let level = get_level_at_path res.left path in
                     let node = (Vytree.get[@alert "-exn"]) res.left path in
                     let rendered =
-                        Config_tree.render_node indent level node
+                        if (Config_tree.is_tag_value[@alert "-exn"]) res.left path then
+                            let tag_node =
+                                match Util.get_last_n path 1 with
+                                | None -> (* not possible as path non-empty *) "none"
+                                | Some n -> n
+                            in
+                            Config_tree.render_tag_node_child indent level tag_node node
+                        else
+                            Config_tree.render_node indent level node
                     in
                     let rev_diff = diff_str ^ annotate_rendered m rendered in
                     {res with config_diff = rev_diff; open_blocks = rev_blocks;}
