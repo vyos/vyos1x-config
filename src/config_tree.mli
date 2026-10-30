@@ -99,6 +99,8 @@ val render_config : ?ord_val:bool -> t -> string
 
 val render_node : ?ord_val:bool -> int -> int -> t -> string
 
+val render_tag_node_child : ?ord_val:bool -> int -> int -> string -> t -> string
+
 val render_values : ?ord_val:bool -> string -> string -> string list -> string
 
 val make_indent : int -> int -> string

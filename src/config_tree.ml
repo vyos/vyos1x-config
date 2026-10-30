@@ -533,6 +533,9 @@ let render_config ?(ord_val=false) = Renderer.render_config ~ord_val:ord_val
 let render_node ?(ord_val=false) indent level node =
     Renderer.render_node ~ord_val:ord_val indent level node
 
+let render_tag_node_child ?(ord_val=false) indent level parent node =
+    Renderer.render_tag_node_child ~ord_val:ord_val indent level parent node
+
 let render_values ?(ord_val=false) indent_str name values =
     Renderer.render_values ~ord_val:ord_val indent_str name values
 
