@@ -9,15 +9,22 @@ module Diff_tree = struct
                sub: Config_tree.t;
                del: Config_tree.t;
                inter: Config_tree.t;
+               comment_changeset: (string list * string option) list;
+               diff_comments: bool;
              }
 
-    let make_init l r = { left = l;
-                            right = r;
-                            add = Config_tree.default;
-                            sub = Config_tree.default;
-                            del = Config_tree.default;
-                            inter = Config_tree.default;
-                          }
+    let make_init ?(diff_comments=false) l r =
+        { left = l;
+          right = r;
+          add = Config_tree.default;
+          sub = Config_tree.default;
+          del = Config_tree.default;
+          inter = Config_tree.default;
+          comment_changeset = [];
+          diff_comments = diff_comments;
+        }
+
+    let diff_comments res = res.diff_comments
 
     let diff_func ?(descent=true) (path : string list) res (m : change) =
         (* raises no exception:
@@ -27,55 +34,84 @@ module Diff_tree = struct
             [Vytree.Nonexistent_path] not possible as pattern Updated implies path exists
          *)
         match m with
-        | Added -> {res with add = (Config_tree.clone[@alert "-exn"]) res.right res.add path; }
+        | Added ->
+            {res with add = (Config_tree.clone[@alert "-exn"]) res.right res.add path; }
+
         | Subtracted ->
             {res with sub = (Config_tree.clone[@alert "-exn"]) res.left res.sub path;
              del = (Config_tree.clone[@alert "-exn"]) ~descent:false ~set_values:(Some []) res.left res.del path; }
+
         | Unchanged ->
             {res with inter = (Config_tree.clone[@alert "-exn"]) ~descent:descent res.left res.inter path; }
-        | Updated v ->
-                (* if in this case, node at path is guaranteed to exist *)
-                let ov = (Config_tree.get_values[@alert "-exn"]) res.left path in
-                match ov, v with
-                | [_], [_] -> {res with sub = (Config_tree.clone[@alert "-exn"]) res.left res.sub path;
-                               del = (Config_tree.clone[@alert "-exn"]) res.left res.del path;
-                               add = (Config_tree.clone[@alert "-exn"]) res.right res.add path; }
-                | _, _ -> let ov_set = ValueS.of_list ov in
-                          let v_set = ValueS.of_list v in
-                          let sub_vals = ValueS.elements (ValueS.diff ov_set v_set) in
-                          let add_vals = ValueS.elements (ValueS.diff v_set ov_set) in
-                          let inter_vals = ValueS.elements (ValueS.inter ov_set v_set) in
-                          let sub_tree =
-                              if not (Util.is_empty sub_vals) then
-                                  (Config_tree.clone[@alert "-exn"]) ~set_values:(Some sub_vals) res.left res.sub path
+
+        | Updated (cmp, ldata, rdata) ->
+            let comment_changeset =
+                match cmp with
+                | Values -> res.comment_changeset
+                | Values_and_comments ->
+                    if ldata.comment = rdata.comment then
+                        res.comment_changeset
+                    else
+                    match ldata.comment, rdata.comment with
+                    | Some _, None ->
+                        (path, None) :: res.comment_changeset
+                    | _, Some c ->
+                        (path, Some c) :: res.comment_changeset
+                    | None, None (* not reached *) ->
+                        res.comment_changeset
+            in
+            if not ldata.leaf then { res with comment_changeset = comment_changeset }
+            else
+            let ov = ldata.values in
+            let v = rdata.values in
+            match ov, v with
+            | [_], [_] -> if ov = v then { res with comment_changeset = comment_changeset }
+                          else
+                          { res with sub = (Config_tree.clone[@alert "-exn"]) res.left res.sub path;
+                            del = (Config_tree.clone[@alert "-exn"]) res.left res.del path;
+                            add = (Config_tree.clone[@alert "-exn"]) res.right res.add path;
+                            comment_changeset = comment_changeset; }
+            | _, _ -> let ov_set = ValueS.of_list ov in
+                      let v_set = ValueS.of_list v in
+                      if ValueS.equal ov_set v_set then { res with comment_changeset = comment_changeset }
+                      else
+                      let sub_vals = ValueS.elements (ValueS.diff ov_set v_set) in
+                      let add_vals = ValueS.elements (ValueS.diff v_set ov_set) in
+                      let inter_vals = ValueS.elements (ValueS.inter ov_set v_set) in
+                      let sub_tree =
+                          if not (Util.is_empty sub_vals) then
+                              (Config_tree.clone[@alert "-exn"]) ~set_values:(Some sub_vals) res.left res.sub path
+                          else
+                              res.sub
+                      in
+                      let del_tree =
+                          if not (Util.is_empty sub_vals) then
+                              if (Util.is_empty add_vals) && (Util.is_empty inter_vals) then
+                                  (* delete whole node, not just values *)
+                                  (Config_tree.clone[@alert "-exn"]) ~set_values:(Some []) res.left res.del path
                               else
-                                  res.sub
-                          in
-                          let del_tree =
-                              if not (Util.is_empty sub_vals) then
-                                  if (Util.is_empty add_vals) && (Util.is_empty inter_vals) then
-                                      (* delete whole node, not just values *)
-                                      (Config_tree.clone[@alert "-exn"]) ~set_values:(Some []) res.left res.del path
-                                  else
-                                      (Config_tree.clone[@alert "-exn"]) ~set_values:(Some sub_vals) res.left res.del path
-                              else
-                                  res.del
-                          in
-                          let add_tree =
-                              if not (Util.is_empty add_vals) then
-                                  (Config_tree.clone[@alert "-exn"]) ~set_values:(Some add_vals) res.right res.add path
-                              else
-                                  res.add
-                          in
-                          let inter_tree =
-                              if not (Util.is_empty inter_vals) then
-                                  (Config_tree.clone[@alert "-exn"]) ~set_values:(Some inter_vals) res.left res.inter path
-                              else
-                                  res.inter
-                          in { res with add = add_tree;
-                               sub = sub_tree;
-                               del = del_tree;
-                               inter = inter_tree; }
+                                  (Config_tree.clone[@alert "-exn"]) ~set_values:(Some sub_vals) res.left res.del path
+                          else
+                              res.del
+                      in
+                      let add_tree =
+                          if not (Util.is_empty add_vals) then
+                              (Config_tree.clone[@alert "-exn"]) ~set_values:(Some add_vals) res.right res.add path
+                          else
+                              res.add
+                      in
+                      let inter_tree =
+                          if not (Util.is_empty inter_vals) then
+                              (Config_tree.clone[@alert "-exn"]) ~set_values:(Some inter_vals) res.left res.inter path
+                          else
+                              res.inter
+                      in
+                      { res with add = add_tree;
+                        sub = sub_tree;
+                        del = del_tree;
+                        inter = inter_tree;
+                        comment_changeset = comment_changeset; }
+
 end
 
 module D = Diff(Diff_tree)
@@ -97,7 +133,7 @@ let tree_at_path path node =
 
 (* call recursive diff on Diff_tree.t with Diff_tree.diff_func *)
 
-let diff_trees path left right =
+let diff_trees ?(diff_comments=false) path left right =
     (* raises:
         [Empty_comparison] from tree_at_path
         [Incommensurable]
@@ -107,26 +143,37 @@ let diff_trees path left right =
     else
         let (left, right) = if not (path = []) then
             (tree_at_path path left, tree_at_path path right) else (left, right) in
-        let trees = Diff_tree.make_init left right in
+        let trees = Diff_tree.make_init ~diff_comments left right in
         D.diff trees left right
 
 (* wrapper to return single tree with diff trees as subtrees *)
 
-let diff_tree path left right =
+let diff_tree_data ?(diff_comments=false) path left right =
     (* raises:
         [Incommensurable],
         [Empty_comparison] from compare
      *)
-    let trees = diff_trees path left right in
+    let tree_data = diff_trees ~diff_comments path left right in
     let add_node =
-        Vytree.make_full Config_tree.default_data "add" (Vytree.children_of_node (trees.add)) in
+        Vytree.make_full Config_tree.default_data "add" (Vytree.children_of_node (tree_data.add)) in
     let sub_node =
-        Vytree.make_full Config_tree.default_data "sub" (Vytree.children_of_node (trees.sub)) in
+        Vytree.make_full Config_tree.default_data "sub" (Vytree.children_of_node (tree_data.sub)) in
     let del_node =
-        Vytree.make_full Config_tree.default_data "del" (Vytree.children_of_node (trees.del)) in
+        Vytree.make_full Config_tree.default_data "del" (Vytree.children_of_node (tree_data.del)) in
     let int_node =
-        Vytree.make_full Config_tree.default_data "inter" (Vytree.children_of_node (trees.inter)) in
-    Vytree.make_full Config_tree.default_data "" [add_node; sub_node; del_node; int_node]
+        Vytree.make_full Config_tree.default_data "inter" (Vytree.children_of_node (tree_data.inter)) in
+    let tree =
+        Vytree.make_full Config_tree.default_data "" [add_node; sub_node; del_node; int_node]
+    in
+    tree, tree_data.comment_changeset
+
+let diff_tree ?(diff_comments=false) path left right =
+    (* raises:
+        [Incommensurable],
+        [Empty_comparison] from compare
+     *)
+    let tree, _ = diff_tree_data ~diff_comments path left right in
+    tree
 
 (* convenience function needed for commit algorithm:
     we need a hybrid tree between the 'del' tree and the 'sub' tree, namely:
