@@ -54,15 +54,20 @@ module Diff_compare = struct
                ppath: string list;
                udiff: string;
                cmds: bool;
+               diff_comments: bool;
              }
 
-    let make_init l r cmds = { left = l;
-                               right = r;
-                               skel = Config_tree.default;
-                               ppath = [];
-                               udiff = "";
-                               cmds = cmds;
-                             }
+    let make_init ?(diff_comments=false) l r cmds =
+        { left = l;
+          right = r;
+          skel = Config_tree.default;
+          ppath = [];
+          udiff = "";
+          cmds = cmds;
+          diff_comments = diff_comments;
+        }
+
+    let diff_comments res = res.diff_comments
 
     let diff_func ?descent:_ (path : string list) res (m : change) =
         (* raises no exception:
@@ -95,7 +100,11 @@ module Diff_compare = struct
                 in
                 { res with ppath = ppath_l; udiff = str_diff; }
         | Unchanged -> res
-        | Updated v ->
+        | Updated (_cmp, ldata, rdata) ->
+                if not res.diff_comments && not ldata.leaf then
+                    res
+                else
+                let v = rdata.values in
                 let ov = (Config_tree.get_values[@alert "-exn"]) res.left path in
                 match ov, v with
                 | [_], [_] ->
