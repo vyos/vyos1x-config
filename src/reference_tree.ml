@@ -327,10 +327,22 @@ let load_from_xml reftree file =
 
 let has_illegal_characters name =
     (** Checks if string name has illegal characters in it.
-        All whitespace, curly braces, square brackets, and quotes
-        are disallowed due to their special significance to the curly config
+        All whitespace, curly braces, square brackets, and quotes are
+        disallowed due to their special significance to the curly config
         format parser *)
     try Some (Pcre2.get_substring (Pcre2.exec ~pat:"[\\s\\{\\}\\[\\]\"\'#]" name) 0)
+    with Not_found -> None
+
+let tag_value_has_illegal_characters name =
+    (** Checks if tag value name has illegal characters in it.
+        All whitespace and quotes are disallowed, as consistent with legacy. *)
+    try Some (Pcre2.get_substring (Pcre2.exec ~pat:"[\\s\"\']" name) 0)
+    with Not_found -> None
+
+let value_has_illegal_characters name =
+    (** Checks if value name has illegal characters in it.
+        Quotes and newline are disallowed, as consistent with legacy. *)
+    try Some (Pcre2.get_substring (Pcre2.exec ~pat:"[\\n\"\']" name) 0)
     with Not_found -> None
 
 let format_out l =
@@ -870,89 +882,125 @@ let validate_tree_at_path validators_dir rt ct path value =
     (* 6. It's a node that is neither leaf nor tag value with a name that
           doesn't exist in the reference tree
      *)
-    if not ((Vytree.exists[@alert "-exn"]) rt refp) then
+    if Util.is_empty refp || not ((Vytree.exists[@alert "-exn"]) rt refp) then
         let msg = Printf.sprintf "Path %s is not in reference tree\n" (show_path path)
         in raise (Validation_error msg)
     else
-    let node =
-        try
-            (Vytree.get[@alert "-exn"]) ct path
-        with Vytree.Nonexistent_path ->
-            let msg = Printf.sprintf "Path %s is not in config file\n" (show_path path)
-            in raise (Validation_error msg)
-    in
-    let children = Vytree.children_of_node node in
-    let childless = Util.is_empty children in
-    let ct_data = Vytree.data_of_node node in
-    let values = ct_data.Config_tree.values in
-    let values_empty = Util.is_empty values in
-    if (Config_tree.is_tag[@alert "-exn"]) ct path then
-        (* 1. It's a tag node without a child *)
-        if childless then
+    let rt_data = (Vytree.get_data[@alert "-exn"]) rt refp in
+    match value with
+    | Some v -> (* called by validate_tree_filter only on leaf value *)
+        begin
+        (* 5. It's a non-valueless leaf node with an invalid value *)
+        match value_has_illegal_characters v with
+        | Some c ->
             let msg =
-                Printf.sprintf "Configuration path %s requires a tag value\n" (show_path path)
+                Printf.sprintf "Illegal character \"%s\" in value \"%s\" at path %s\n"
+                c v (show_path path)
             in raise (Validation_error msg)
-        else ()
-    else
-    if ((Config_tree.is_tag_value[@alert "-exn"]) ct path) then
-        let rt_data = (Vytree.get_data[@alert "-exn"]) rt (refpath rt (Util.drop_last path)) in
-        let tag_value =
-            match (Util.get_last path) with
-            | Some v -> v
-            | None -> raise (Validation_error "Internal error\n")
-        in
-        (* 2. It's a tag node with an invalid tag value *)
+        | None ->
         let res =
             try
-                Value_checker.validate_any validators_dir rt_data.constraints tag_value
+                Value_checker.validate_any validators_dir rt_data.constraints v
             with Value_checker.Bad_validator msg -> raise (Validation_error msg)
         in
         match res with
-        | None -> ()
         | Some out ->
-            let ret = format_out [show_path path; out; rt_data.constraint_error_message]
+            let ret = format_out [show_path (path @ [v]); out; rt_data.constraint_error_message]
             in raise (Validation_error ret)
-    else
-    if (Config_tree.is_leaf[@alert "-exn"]) ct path then
-        let rt_data = (Vytree.get_data[@alert "-exn"]) rt (refpath rt path) in
-        (* 4. It's a valueless leaf node with a value *)
-        if is_valueless rt refp then
-            if not values_empty then
+        | None -> ()
+        end
+    | None -> (* general case *)
+        let node =
+            try
+                (Vytree.get[@alert "-exn"]) ct path
+            with Vytree.Nonexistent_path ->
+                let msg = Printf.sprintf "Path %s is not in config\n" (show_path path)
+                in raise (Validation_error msg)
+        in
+        let name = Vytree.name_of_node node in
+        if (Config_tree.is_tag[@alert "-exn"]) ct path then
+            match has_illegal_characters name with
+            | Some c ->
                 let msg =
-                    Printf.sprintf "Path at valueless leaf %s has values\n" (show_path path)
+                    Printf.sprintf "Illegal character \"%s\" in node name \"%s\" at path %s\n"
+                    c name (show_path path)
+                in raise (Validation_error msg)
+            | None ->
+            let children = Vytree.children_of_node node in
+            let childless = Util.is_empty children in
+            (* 1. It's a tag node without a child *)
+            if childless then
+                let msg =
+                    Printf.sprintf "Configuration path %s requires a tag value\n" (show_path path)
                 in raise (Validation_error msg)
             else ()
         else
-        (* 3. It's a non-valueless leaf node without a value *)
-        if values_empty then
-            let msg =
-                Printf.sprintf "Configuration path %s requires a value\n" (show_path path)
-            in raise (Validation_error msg)
-        else
-        (* It's a non-multi node with multiple values *)
-        if not (is_multi rt refp) then
-        match values with
-        | [_] -> ()
-        | _ ->
-            let msg =
-                Printf.sprintf "Multiple values for non-multi node %s\n" (show_path path)
-            in raise (Validation_error msg)
-        else
-        match value with
-        | None -> ()
-        | Some v ->
-            (* 5. It's a non-valueless leaf node with an invalid value *)
+        if ((Config_tree.is_tag_value[@alert "-exn"]) ct path) then
+            match tag_value_has_illegal_characters name with
+            | Some c ->
+                let msg =
+                    Printf.sprintf "Illegal character \"%s\" in tag value name \"%s\" at path %s\n"
+                    c name (show_path path)
+                in raise (Validation_error msg)
+            | None ->
+            let rt_data_tag = (Vytree.get_data[@alert "-exn"]) rt (refpath rt (Util.drop_last path)) in
+            let tag_value =
+                match (Util.get_last path) with
+                | Some v -> v
+                | None -> raise (Validation_error "Internal error\n")
+            in
+            (* 2. It's a tag node with an invalid tag value *)
             let res =
                 try
-                    Value_checker.validate_any validators_dir rt_data.constraints v
+                    Value_checker.validate_any validators_dir rt_data_tag.constraints tag_value
                 with Value_checker.Bad_validator msg -> raise (Validation_error msg)
             in
             match res with
             | None -> ()
             | Some out ->
-                let ret = format_out [show_path (path @ [v]); out; rt_data.constraint_error_message]
+                let ret = format_out [show_path path; out; rt_data_tag.constraint_error_message]
                 in raise (Validation_error ret)
-    else ()
+        else
+        if (Config_tree.is_leaf[@alert "-exn"]) ct path then
+            match has_illegal_characters name with
+            | Some c ->
+                let msg =
+                    Printf.sprintf "Illegal character \"%s\" in node name \"%s\" at path %s\n"
+                    c name (show_path path)
+                in raise (Validation_error msg)
+            | None ->
+            let ct_data = Vytree.data_of_node node in
+            let values = ct_data.Config_tree.values in
+            let values_empty = Util.is_empty values in
+            let values_multi = List.compare_length_with values 1 = 1 in
+            (* 4. It's a valueless leaf node with a value *)
+            if rt_data.valueless then
+                if not values_empty then
+                    let msg =
+                        Printf.sprintf "Path at valueless leaf %s has values\n" (show_path path)
+                    in raise (Validation_error msg)
+                else ()
+            else
+            (* 3. It's a non-valueless leaf node without a value *)
+            if values_empty then
+                let msg =
+                    Printf.sprintf "Configuration path %s requires a value\n" (show_path path)
+                in raise (Validation_error msg)
+            else
+            if not rt_data.multi && values_multi then
+            (* It's a non-multi node with multiple values *)
+                let msg =
+                    Printf.sprintf "Multiple values for non-multi node %s\n" (show_path path)
+                in raise (Validation_error msg)
+            else ()
+        else
+            match has_illegal_characters name with
+            | Some c ->
+                let msg =
+                    Printf.sprintf "Illegal character \"%s\" in node name \"%s\" at path %s\n"
+                    c name (show_path path)
+                in raise (Validation_error msg)
+            | None -> ()
 
 let validate_tree_filter dir rt ct =
     (* validate and filter invalid paths *)
@@ -963,12 +1011,13 @@ let validate_tree_filter dir rt ct =
         [Vytree.Nonexistent_path] not possible as extant in tree
        alert exn Vytree.exists:
         [Vytree.Empty_path] not possible as non-empty in branch
-       alert exn Vytree.get_data:
-        [Vytree.Empty_path] not possible as non-empty in branch
-        [Vytree.Nonexistent_path] not possible in fold_tree_with_path
      *)
     let try_validate (p, (ctree, out)) value =
         let q = List.rev p in
+        (* the path may have been removed in previous iteration *)
+        if Util.is_empty q || not ((Vytree.exists[@alert "-exn"]) ctree q) then
+                (p, (ctree, out))
+        else
         try
             validate_tree_at_path dir rt ctree q value;
             (p, (ctree, out))
@@ -979,23 +1028,15 @@ let validate_tree_filter dir rt ct =
             in
             (p, (ct', out ^ x))
     in
-    let validate_path_filter (p, (ctree, out)) _node =
-        if Util.is_empty p then
-            (p, (ctree, out))
-        else
-        let q = List.rev p in
-        (* the path may have been removed in previous iteration *)
-    if not ((Vytree.exists[@alert "-exn"]) ctree q) then
-            (p, (ctree, out))
-        else
-            let data = (Vytree.get_data[@alert "-exn"]) ct q in
+    let validate_path_filter (p, (ctree, out)) node =
+        let ret_path = try_validate (p, (ctree, out)) None in
+        let data = Vytree.data_of_node node in
         let values  = data.Config_tree.values in
         match values with
-        | [] ->
-            try_validate (p, (ctree, out)) None
+        | [] -> ret_path
         | _ as l ->
             let l' = List.map Option.some l in
-            List.fold_left try_validate (p, (ctree, out)) l'
+            List.fold_left try_validate ret_path l'
     in
     let tree, out =
         Vytree.fold_tree_with_path validate_path_filter ([], (ct, "")) ct
@@ -1003,9 +1044,6 @@ let validate_tree_filter dir rt ct =
     tree, out
 
 let validate_tree dir rt ct =
-    (* raises:
-        [Validation_error] from validate_tree_at_path
-     *)
     let _, out = validate_tree_filter dir rt ct in
     out
 
