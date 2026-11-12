@@ -9,6 +9,8 @@ module Mask_inclusive = struct
                           right = r;
                         }
 
+    let diff_comments _ = false
+
     (* mask function; mask applied on right *)
     let diff_func ?descent:_ (path : string list) res (m : change) =
         (* alert exn Vytree.delete:
@@ -41,6 +43,8 @@ module Mask_exclusive = struct
     let make_init l r = { left = l;
                           right = r;
                         }
+
+    let diff_comments _ = false
 
     (* mask function; mask applied on right *)
     let diff_func ?(descent=true) (path : string list) res (m : change) =
