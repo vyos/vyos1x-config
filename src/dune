@@ -7,7 +7,20 @@
  (name vyos1x)
  (public_name vyos1x-config)
  (libraries yojson menhirLib fileutils pcre2 xml-light unix containers)
+ (modules (:standard \ list_reference_path reference_path))
  (preprocess (pps ppx_deriving_yojson))
  (foreign_stubs
   (language c)
   (names lexical_numeric_compare)))
+
+(executable
+ (name list_reference_path)
+ (public_name list_reference_path)
+ (libraries vyos1x)
+ (modules list_reference_path))
+
+(executable
+ (name reference_path)
+ (public_name reference-path)
+ (libraries vyos1x)
+ (modules reference_path))
